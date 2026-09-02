@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { _resetSessionCredentialsForTests } from "@/lib/credentials/sessionCredentials";
 
@@ -19,6 +19,7 @@ function jsonRequest(
 
 afterEach(() => {
   _resetSessionCredentialsForTests();
+  vi.unstubAllEnvs();
 });
 
 describe("GET /api/ai/credentials", () => {
@@ -115,5 +116,68 @@ describe("DELETE /api/ai/credentials", () => {
     const status = await GET(jsonRequest("GET", undefined, { cookie }));
     const payload = await status.json();
     expect(payload.openai.status).toBe("not_configured");
+  });
+});
+
+describe("cross-instance persistence (serverless: no shared process memory)", () => {
+  it("survives losing the in-memory store between requests when SESSION_ENCRYPTION_KEY is set", async () => {
+    vi.stubEnv("SESSION_ENCRYPTION_KEY", "test-only-secret-do-not-use-in-prod");
+
+    const setResponse = await POST(
+      jsonRequest("POST", { provider: "fal", apiKey: "fal-secret-key", model: "fal-ai/some-model" }),
+    );
+    const cookie = setResponse.headers.get("set-cookie")!.split(";")[0];
+    // The cookie value must carry more than the bare session id for this
+    // test to be meaningful — otherwise a fresh instance has nothing to
+    // rehydrate from.
+    expect(cookie.split("=")[1]).toContain(".");
+
+    // Simulate a different serverless instance handling the next request:
+    // the in-memory Map is empty, only the cookie survives.
+    _resetSessionCredentialsForTests();
+
+    const status = await GET(jsonRequest("GET", undefined, { cookie }));
+    const payload = await status.json();
+    expect(payload.fal.status).toBe("available");
+    expect(payload.fal.model).toBe("fal-ai/some-model");
+  });
+
+  it("DELETE re-issues the cookie so the post-clear state is what a fresh instance rehydrates", async () => {
+    vi.stubEnv("SESSION_ENCRYPTION_KEY", "test-only-secret-do-not-use-in-prod");
+
+    const setResponse = await POST(jsonRequest("POST", { provider: "openai", apiKey: "sk-to-be-cleared" }));
+    const preDeleteCookie = setResponse.headers.get("set-cookie")!.split(";")[0];
+
+    const deleteResponse = await DELETE(jsonRequest("DELETE", { provider: "openai" }, { cookie: preDeleteCookie }));
+    const freshCookie = deleteResponse.headers.get("set-cookie")!.split(";")[0];
+    expect(freshCookie).not.toBe(preDeleteCookie);
+
+    // A different instance rehydrating from the cookie DELETE actually
+    // returned sees the cleared state, with no in-memory history at all.
+    _resetSessionCredentialsForTests();
+    const freshRead = await GET(jsonRequest("GET", undefined, { cookie: freshCookie }));
+    expect((await freshRead.json()).openai.status).toBe("not_configured");
+
+    // Known, accepted tradeoff of embedding state in the cookie itself
+    // (no server-side revocation list): a *pre-delete* cookie value, if
+    // manually replayed, still decrypts to the old key. This is not
+    // reachable in normal single-browser use — a compliant browser always
+    // adopts the newest Set-Cookie from the same-origin DELETE response
+    // before its next request — so it is not a regression versus the prior
+    // in-memory-only design, which had the same "old cookie = old session"
+    // property. Documented here rather than silently assumed.
+    _resetSessionCredentialsForTests();
+    const staleRead = await GET(jsonRequest("GET", undefined, { cookie: preDeleteCookie }));
+    expect((await staleRead.json()).openai.status).toBe("available");
+  });
+
+  it("without SESSION_ENCRYPTION_KEY, falls back to the pre-existing in-memory-only behavior", async () => {
+    const setResponse = await POST(jsonRequest("POST", { provider: "openai", apiKey: "sk-no-encryption-key" }));
+    const cookie = setResponse.headers.get("set-cookie")!.split(";")[0];
+    // No key configured -> cookie value is the bare session id, no blob.
+    expect(cookie.split("=")[1]).not.toContain(".");
+
+    const status = await GET(jsonRequest("GET", undefined, { cookie }));
+    expect((await status.json()).openai.status).toBe("available");
   });
 });

@@ -6,6 +6,7 @@ import { readOrCreateSessionId, readSessionId, sessionCookieHeader } from "@/lib
 import {
   clearAllSessionCredentials,
   clearSessionCredential,
+  getSessionCredentials,
   maskKeySuffix,
   setSessionCredential,
 } from "@/lib/credentials/sessionCredentials";
@@ -63,17 +64,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const { sessionId, isNew } = readOrCreateSessionId(request);
+  const { sessionId } = readOrCreateSessionId(request);
   const { provider, apiKey, model } = parsed.data;
 
-  if (provider === "openai") {
-    setSessionCredential(sessionId, { openaiApiKey: apiKey });
-  } else {
-    setSessionCredential(sessionId, {
-      falApiKey: apiKey,
-      ...(model ? { falModel: model } : {}),
-    });
-  }
+  const merged =
+    provider === "openai"
+      ? setSessionCredential(sessionId, { openaiApiKey: apiKey })
+      : setSessionCredential(sessionId, {
+          falApiKey: apiKey,
+          ...(model ? { falModel: model } : {}),
+        });
 
   const response = NextResponse.json({
     ok: true,
@@ -81,10 +81,11 @@ export async function POST(request: Request) {
     status: "available" as const,
     masked: maskKeySuffix(apiKey),
   });
-  if (isNew) {
-    const secure = process.env.NODE_ENV === "production" || new URL(request.url).protocol === "https:";
-    response.headers.append("set-cookie", sessionCookieHeader(sessionId, { secure }));
-  }
+  // Always re-issue the cookie (not just on first save): the encrypted
+  // blob embeds the full credential state so a different serverless
+  // instance can rehydrate it on the next request. See sessionCookie.ts.
+  const secure = process.env.NODE_ENV === "production" || new URL(request.url).protocol === "https:";
+  response.headers.append("set-cookie", sessionCookieHeader(sessionId, merged, { secure }));
   return response;
 }
 
@@ -112,13 +113,23 @@ export async function DELETE(request: Request) {
 
   if (parsed.data.provider === "all") {
     clearAllSessionCredentials(sessionId);
-    return NextResponse.json({ ok: true, cleared: ["openai", "fal"] });
-  }
-  if (parsed.data.provider === "openai") {
+  } else if (parsed.data.provider === "openai") {
     clearSessionCredential(sessionId, "openaiApiKey");
   } else {
     clearSessionCredential(sessionId, "falApiKey");
     clearSessionCredential(sessionId, "falModel");
   }
-  return NextResponse.json({ ok: true, cleared: [parsed.data.provider] });
+
+  const response = NextResponse.json({
+    ok: true,
+    cleared: parsed.data.provider === "all" ? ["openai", "fal"] : [parsed.data.provider],
+  });
+  // Re-issue the cookie with the post-clear state so a stale encrypted blob
+  // (from a different serverless instance) can't resurrect a cleared key.
+  const secure = process.env.NODE_ENV === "production" || new URL(request.url).protocol === "https:";
+  response.headers.append(
+    "set-cookie",
+    sessionCookieHeader(sessionId, getSessionCredentials(sessionId), { secure }),
+  );
+  return response;
 }
