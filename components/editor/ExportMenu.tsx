@@ -185,8 +185,8 @@ export function ExportMenu() {
           role="dialog"
         >
           <div className="mb-3">
-            <div className="text-[11px] font-bold text-white">Reproducible export</div>
-            <p className="mt-1 text-[9px] leading-4 text-[#79818c]">
+            <div className="micro-label">Reproducible export</div>
+            <p className="mt-1.5 text-[10px] leading-4 text-[#68717c]">
               Source and timeline ranges stay separate. Only base input audio is mapped;
               every B-roll input remains video-only.
             </p>

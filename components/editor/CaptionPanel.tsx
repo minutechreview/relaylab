@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { Caption, CaptionPosition } from "@/lib/editor/types";
 
 import { useRelayLabStore } from "./EditorProvider";
-import { CaptionsIcon, CheckIcon, PlusIcon, TrashIcon } from "./Icons";
+import { CaptionsIcon, PlusIcon, TrashIcon } from "./Icons";
 import { useLocalMedia } from "./LocalMediaProvider";
 
 function CaptionRow({
@@ -60,7 +60,7 @@ function CaptionRow({
       </div>
       <textarea
         aria-label={`Caption text at ${caption.start.toFixed(1)} seconds`}
-        className="numeric-field min-h-14 resize-none text-[10px] leading-4 disabled:opacity-55"
+        className="numeric-field min-h-16 max-h-28 resize-none overflow-y-auto text-[10px] leading-4 disabled:opacity-55"
         disabled={disabled}
         maxLength={240}
         onBlur={saveText}
@@ -157,7 +157,7 @@ export function CaptionPanel({
               return (
                 <button
                   aria-pressed={active}
-                  className={`flex h-8 items-center justify-center gap-1 rounded-md border text-[9px] font-semibold transition disabled:opacity-45 ${
+                  className={`flex h-8 items-center justify-center rounded-md border px-1 text-[9px] font-semibold transition disabled:opacity-45 ${
                     active
                       ? "border-[#547966] bg-[#172820] text-[#9be8c6]"
                       : "border-[#2b3038] bg-[#14171b] text-[#7f8792] hover:border-[#444b55]"
@@ -167,7 +167,6 @@ export function CaptionPanel({
                   onClick={() => setCaptionPosition(position.value)}
                   type="button"
                 >
-                  {active ? <CheckIcon className="h-3 w-3" /> : null}
                   {position.label}
                 </button>
               );
@@ -176,30 +175,44 @@ export function CaptionPanel({
         </section>
 
         {project.transcript.length > 0 ? (
-          <button
-            className="mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-[#365847] bg-[#16251e] text-[9px] font-semibold text-[#97dfbf] hover:border-[#568a70] disabled:opacity-40"
-            disabled={!editable}
-            onClick={() => {
-              if (
-                project.captions.length === 0 ||
-                window.confirm("Replace current captions with the timed transcript?")
-              ) generateCaptions();
-            }}
-            type="button"
-          >
-            <CaptionsIcon className="h-3.5 w-3.5" /> Create from transcript
-          </button>
-        ) : project.baseVideo.objectUrl ? (
           <div className="mt-2">
             <button
               className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-[#365847] bg-[#16251e] text-[9px] font-semibold text-[#97dfbf] hover:border-[#568a70] disabled:opacity-40"
+              data-testid="captions-from-transcript"
+              disabled={!editable}
+              onClick={() => {
+                if (
+                  project.captions.length === 0 ||
+                  window.confirm("Replace current captions with the timed transcript?")
+                ) generateCaptions();
+              }}
+              title="Turns the project's existing transcript into caption blocks. Local only — no API call."
+              type="button"
+            >
+              <CaptionsIcon className="h-3.5 w-3.5" /> Create from transcript
+            </button>
+            <p className="mt-1 text-center text-[8px] leading-4 text-[#5c6470]">
+              Uses the existing transcript. Does not call OpenAI.
+            </p>
+          </div>
+        ) : null}
+
+        {project.baseVideo.objectUrl ? (
+          <div className={project.transcript.length > 0 ? "mt-3" : "mt-2"}>
+            <button
+              className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-[#365847] bg-[#16251e] text-[9px] font-semibold text-[#97dfbf] hover:border-[#568a70] disabled:opacity-40"
+              data-testid="auto-captions"
               disabled={!editable || transcription.status === "reading"}
               onClick={() => void transcribeBaseVideo()}
+              title="Sends the uploaded video's audio to OpenAI Whisper for real speech-to-text transcription."
               type="button"
             >
               <CaptionsIcon className="h-3.5 w-3.5" />
-              {transcription.status === "reading" ? "Transcribing…" : "Auto captions"}
+              {transcription.status === "reading" ? "Transcribing…" : "Auto captions (OpenAI)"}
             </button>
+            <p className="mt-1 text-center text-[8px] leading-4 text-[#5c6470]">
+              Runs OpenAI Whisper on your uploaded video's audio.
+            </p>
             {transcription.message ? (
               <p
                 aria-live="polite"
@@ -211,11 +224,11 @@ export function CaptionPanel({
               </p>
             ) : null}
           </div>
-        ) : (
+        ) : project.transcript.length === 0 ? (
           <p className="mt-2 rounded-md border border-[#2a2f37] bg-[#12151a] px-2.5 py-2 text-[9px] leading-4 text-[#737b86]">
             No timed transcript yet. Add captions manually below; automatic transcription needs a configured provider.
           </p>
-        )}
+        ) : null}
 
         <section className="mt-2 rounded-lg border border-[#272c34] bg-[#0d0f12] p-2.5">
           <div className="flex items-center justify-between">

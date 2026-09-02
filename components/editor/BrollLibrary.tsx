@@ -217,7 +217,6 @@ export function BrollLibrary({
               <div className="absolute bottom-2 right-2 rounded bg-black/55 px-1.5 py-1 text-[9px] text-white/70">
                 {formatDuration(moment.sourceEnd - moment.sourceStart)}
               </div>
-              <div className="absolute bottom-2 left-2 h-5 w-8 rounded-sm border border-white/10 bg-white/5 shadow-inner" />
             </div>
             <div className="p-2.5">
               <div className="mb-1 flex items-center justify-between gap-2">

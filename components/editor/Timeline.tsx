@@ -609,13 +609,17 @@ export function Timeline({
                   <CloseIcon className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                <GenerationSuggestionPanel suggestion={selectedSuggestion} />
+              <div className="relative min-h-0 flex-1">
+                <div className="h-full overflow-y-auto pr-1">
+                  <GenerationSuggestionPanel suggestion={selectedSuggestion} />
+                </div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-[#111318] to-transparent" />
               </div>
             </div>
           ) : selectedOverlay ? (
             <div className="flex h-full min-h-0 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="relative min-h-0 flex-1">
+              <div className="h-full overflow-y-auto pr-1">
               <div className="flex items-center justify-between">
                 <div className="micro-label">Overlay details</div>
                 <div className="flex items-center gap-1.5">
@@ -754,6 +758,8 @@ export function Timeline({
                   </ul>
                 </div>
               ) : null}
+              </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-[#111318] to-transparent" />
               </div>
               <div className="mt-2 shrink-0 border-t border-[#242831] pt-2">
               <div className="grid grid-cols-3 gap-2">
