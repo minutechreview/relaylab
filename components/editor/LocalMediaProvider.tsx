@@ -273,6 +273,21 @@ export function LocalMediaProvider({
       setTranscription({ status: "error", message });
       return { ok: false, message };
     }
+    // Vercel's Node.js Serverless Functions reject request bodies above
+    // ~4.5 MB at the platform level, well below OpenAI's own 25 MB limit —
+    // matches the server-side check in app/api/transcribe/route.ts. Fail
+    // fast client-side rather than waiting through a slow doomed upload.
+    const isVercelDeployment =
+      typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app");
+    const maxBytes = isVercelDeployment ? 4 * 1024 * 1024 : 25 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      const limitMb = Math.floor(maxBytes / (1024 * 1024));
+      const message = isVercelDeployment
+        ? `This hosted deployment accepts files up to ${limitMb} MB for automatic transcription (a platform limit, not OpenAI's). Trim the clip, extract just the audio track, add captions manually, or run this locally where the limit is 25 MB.`
+        : `Automatic transcription accepts files up to ${limitMb} MB. Add captions manually or upload a smaller proxy.`;
+      setTranscription({ status: "error", message });
+      return { ok: false, message };
+    }
 
     setTranscription({ status: "reading", message: "Transcribing base audio…" });
     const form = new FormData();

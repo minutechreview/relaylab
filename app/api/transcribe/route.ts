@@ -8,7 +8,16 @@ import { isSameOriginRequest } from "@/lib/security/sameOrigin";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+/**
+ * OpenAI's own `/v1/audio/transcriptions` limit is 25 MB, which is the
+ * right ceiling for a long-running Node server. On Vercel, Node.js
+ * Serverless Functions reject request bodies above ~4.5 MB at the platform
+ * level (`FUNCTION_PAYLOAD_TOO_LARGE`) before this handler ever runs — no
+ * amount of application-level config raises that. Stay safely under it
+ * there instead of returning a confusing platform-level error for videos
+ * that would otherwise be well within OpenAI's own limit.
+ */
+const MAX_UPLOAD_BYTES = process.env.VERCEL ? 4 * 1024 * 1024 : 25 * 1024 * 1024;
 
 function errorResponse(status: number, code: string, message: string) {
   return NextResponse.json({ ok: false, code, message }, { status });
@@ -54,10 +63,13 @@ export async function POST(request: Request) {
     return errorResponse(400, "INVALID_TRANSCRIPTION_MEDIA", "Choose a readable audio or video file.");
   }
   if (media.size > MAX_UPLOAD_BYTES) {
+    const limitMb = Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024));
     return errorResponse(
       413,
       "TRANSCRIPTION_MEDIA_TOO_LARGE",
-      "Automatic transcription accepts files up to 25 MB. Add captions manually or upload a smaller proxy.",
+      process.env.VERCEL
+        ? `This hosted deployment accepts files up to ${limitMb} MB for automatic transcription (a Vercel serverless platform limit, not OpenAI's). Trim the clip, extract just the audio track first, add captions manually, or run this locally where the limit is 25 MB.`
+        : `Automatic transcription accepts files up to ${limitMb} MB. Add captions manually or upload a smaller proxy.`,
     );
   }
   if (
