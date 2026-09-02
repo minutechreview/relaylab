@@ -1,0 +1,154 @@
+[
+  {
+    "name": "Understand the project before editing",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Review this B-roll project between 8 and 42 seconds. Tell me what is being said, where visual support may help, and what is already on the timeline before making changes."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_project_summary",
+        "arguments": {}
+      },
+      {
+        "functionName": "get_transcript",
+        "arguments": {
+          "startSeconds": 8,
+          "endSeconds": 42,
+          "maxSegments": 10
+        }
+      },
+      {
+        "functionName": "find_overlay_opportunities",
+        "arguments": {
+          "startSeconds": 8,
+          "endSeconds": 42
+        }
+      },
+      {
+        "functionName": "get_timeline",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "Prefer a strong uploaded source moment",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Use my uploaded overhead workspace footage to support the point about realistic examples. Add it as a proposal around 31 seconds, but do not commit anything."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "search_broll",
+        "arguments": {
+          "query": "overhead designer arranging interface sketches laptop workspace planning",
+          "targetDuration": 5,
+          "limit": 5
+        }
+      },
+      {
+        "functionName": "propose_overlay",
+        "arguments": {
+          "momentId": "moment_workspace_overhead",
+          "timelineStart": 31,
+          "duration": 5,
+          "reason": "Show a concrete workspace example while the speaker explains that realistic examples teach faster."
+        }
+      },
+      {
+        "functionName": "get_timeline",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "Replace a generation fallback only after uploaded footage is weak",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Review the existing suggestion at 56 seconds where the speaker describes an AI manager watching operations across stores. Search my footage first. If it is still not a strong match, replace that suggestion with one revised five-second idea for me to review; do not generate or spend credits."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_timeline",
+        "arguments": {}
+      },
+      {
+        "functionName": "search_broll",
+        "arguments": {
+          "query": "restaurant manager monitors live inventory across stores on tablet",
+          "targetDuration": 5,
+          "limit": 5
+        }
+      },
+      {
+        "functionName": "remove_generated_broll_suggestion",
+        "arguments": {
+          "suggestionId": "gen_demo_manager"
+        }
+      },
+      {
+        "functionName": "propose_generated_broll",
+        "arguments": {
+          "searchQuery": "restaurant manager monitors live inventory across stores on tablet",
+          "timelineStart": 56,
+          "duration": 5,
+          "prompt": "Over-the-shoulder shot of a restaurant manager reviewing a live operations dashboard on a tablet in a realistic cafe, subtle camera motion, no dialogue, no text overlays.",
+          "reason": "The speaker describes cross-store operational awareness, but the uploaded POS and coffee clips do not communicate that concept."
+        }
+      },
+      {
+        "functionName": "get_timeline",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "name": "Respect a tighter human pacing preference",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "Use a 12-second maximum talking-head stretch and show me the resulting opportunities. Do not place any clips yet."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "set_pacing_preference",
+        "arguments": {
+          "maxTalkingHeadSeconds": 12
+        }
+      },
+      {
+        "functionName": "find_overlay_opportunities",
+        "arguments": {
+          "maxTalkingHeadSeconds": 12
+        }
+      }
+    ]
+  },
+  {
+    "name": "Reread human-edited timeline before replanning",
+    "messages": [
+      {
+        "role": "user",
+        "type": "message",
+        "content": "I moved and locked an edit in the visual timeline. Reread the current timeline before suggesting anything else."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_timeline",
+        "arguments": {}
+      }
+    ]
+  }
+]
