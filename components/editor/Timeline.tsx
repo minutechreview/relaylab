@@ -596,10 +596,10 @@ export function Timeline({
         </div>
 
         {hasSelection ? (
-        <aside className="timeline-inspector absolute bottom-0 right-0 top-0 z-40 w-[300px] overflow-y-auto border-l border-[#303640] bg-[#111318]/98 p-3 shadow-[-18px_0_44px_rgba(0,0,0,.42)] backdrop-blur" aria-label="Selected timeline item details">
+        <aside className="timeline-inspector absolute bottom-0 right-0 top-0 z-40 flex w-[300px] flex-col overflow-hidden border-l border-[#303640] bg-[#111318]/98 p-3 shadow-[-18px_0_44px_rgba(0,0,0,.42)] backdrop-blur" aria-label="Selected timeline item details">
           {selectedSuggestion ? (
-            <div>
-              <div className="mb-2 flex justify-end">
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="mb-2 flex shrink-0 justify-end">
                 <button
                   aria-label="Close timeline inspector"
                   className="icon-button h-7 w-7"
@@ -609,10 +609,13 @@ export function Timeline({
                   <CloseIcon className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <GenerationSuggestionPanel suggestion={selectedSuggestion} />
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <GenerationSuggestionPanel suggestion={selectedSuggestion} />
+              </div>
             </div>
           ) : selectedOverlay ? (
-            <div>
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               <div className="flex items-center justify-between">
                 <div className="micro-label">Overlay details</div>
                 <div className="flex items-center gap-1.5">
@@ -751,7 +754,9 @@ export function Timeline({
                   </ul>
                 </div>
               ) : null}
-              <div className="mt-2 grid grid-cols-3 gap-2">
+              </div>
+              <div className="mt-2 shrink-0 border-t border-[#242831] pt-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   aria-label="Split overlay at playhead"
                   className="flex h-9 items-center justify-center gap-1 rounded-md border border-[#343a44] bg-[#191c21] px-2 text-[8px] font-semibold text-[#a4abb5] outline-none transition hover:border-[#626b77] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
@@ -800,6 +805,7 @@ export function Timeline({
                     ? "This human lock rejects agent updates and removal. Unlock it here to keep editing."
                     : "Drag the block or use arrow keys. Shift + arrow moves one second."}
               </p>
+              </div>
             </div>
           ) : (
             <div className="flex h-full items-center justify-center text-center text-[10px] leading-4 text-[#5f6772]">Select an overlay to inspect its exact timing and source range.</div>
