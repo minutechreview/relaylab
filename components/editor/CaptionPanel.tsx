@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-import type { Caption, CaptionPosition } from "@/lib/editor/types";
+import {
+  CAPTION_FONT_LABELS,
+  CAPTION_FONT_PRESETS,
+  CAPTION_FONT_SIZE_MAX,
+  CAPTION_FONT_SIZE_MIN,
+  CAPTION_FONT_STACKS,
+} from "@/lib/editor/captionStyle";
+import type { Caption, CaptionBackground, CaptionFontFamily, CaptionPosition } from "@/lib/editor/types";
 
 import { useRelayLabStore } from "./EditorProvider";
 import { CaptionsIcon, PlusIcon, TrashIcon } from "./Icons";
@@ -112,6 +119,7 @@ export function CaptionPanel({
   const addCaption = useRelayLabStore((state) => state.addCaption);
   const generateCaptions = useRelayLabStore((state) => state.generateCaptions);
   const setCaptionPosition = useRelayLabStore((state) => state.setCaptionPosition);
+  const setCaptionStyle = useRelayLabStore((state) => state.setCaptionStyle);
   const { transcription, transcribeBaseVideo } = useLocalMedia();
   const [draft, setDraft] = useState("");
   const [duration, setDuration] = useState(3);
@@ -172,6 +180,117 @@ export function CaptionPanel({
               );
             })}
           </div>
+        </section>
+
+        <section className="mt-2 rounded-lg border border-[#272c34] bg-[#0d0f12] p-2.5">
+          <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#69717d]">
+            Style
+          </div>
+
+          <label className="mt-2 block text-[8px] text-[#68717c]">
+            Font
+            <select
+              className="numeric-field mt-1 w-full text-[9px] disabled:opacity-55"
+              data-testid="caption-font-select"
+              disabled={!editable}
+              onChange={(event) =>
+                setCaptionStyle({ fontFamily: event.target.value as CaptionFontFamily })
+              }
+              value={project.captionStyle.fontFamily}
+            >
+              {CAPTION_FONT_PRESETS.map((font) => (
+                <option key={font} value={font}>
+                  {CAPTION_FONT_LABELS[font]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="mt-2 block text-[8px] text-[#68717c]">
+            <span className="flex items-center justify-between">
+              Size
+              <span className="font-mono text-[#9aa2ad]">{project.captionStyle.fontSize}px</span>
+            </span>
+            <input
+              aria-label="Caption font size"
+              className="mt-1.5 h-1 w-full cursor-pointer accent-[#7ee2b8] disabled:cursor-not-allowed disabled:opacity-45"
+              data-testid="caption-font-size"
+              disabled={!editable}
+              max={CAPTION_FONT_SIZE_MAX}
+              min={CAPTION_FONT_SIZE_MIN}
+              onChange={(event) => setCaptionStyle({ fontSize: Number(event.target.value) })}
+              step={1}
+              type="range"
+              value={project.captionStyle.fontSize}
+            />
+          </label>
+
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <label className="text-[8px] text-[#68717c]">
+              Text color
+              <div className="mt-1 flex items-center gap-1.5 rounded-md border border-[#2b3038] bg-[#14171b] px-1.5 py-1">
+                <input
+                  aria-label="Caption text color"
+                  className="h-5 w-6 cursor-pointer border-none bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={!editable}
+                  onChange={(event) => setCaptionStyle({ color: event.target.value })}
+                  type="color"
+                  value={project.captionStyle.color}
+                />
+                <span className="font-mono text-[8px] text-[#9aa2ad]">{project.captionStyle.color}</span>
+              </div>
+            </label>
+            <label className="text-[8px] text-[#68717c]">
+              Background
+              <select
+                className="numeric-field mt-1 w-full text-[9px] disabled:opacity-55"
+                data-testid="caption-background-select"
+                disabled={!editable}
+                onChange={(event) =>
+                  setCaptionStyle({ background: event.target.value as CaptionBackground })
+                }
+                value={project.captionStyle.background}
+              >
+                <option value="solid">Solid box</option>
+                <option value="none">None</option>
+              </select>
+            </label>
+          </div>
+
+          {project.captionStyle.background === "solid" ? (
+            <label className="mt-2 block text-[8px] text-[#68717c]">
+              Background color
+              <div className="mt-1 flex items-center gap-1.5 rounded-md border border-[#2b3038] bg-[#14171b] px-1.5 py-1">
+                <input
+                  aria-label="Caption background color"
+                  className="h-5 w-6 cursor-pointer border-none bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={!editable}
+                  onChange={(event) => setCaptionStyle({ backgroundColor: event.target.value })}
+                  type="color"
+                  value={project.captionStyle.backgroundColor}
+                />
+                <span className="font-mono text-[8px] text-[#9aa2ad]">
+                  {project.captionStyle.backgroundColor}
+                </span>
+              </div>
+            </label>
+          ) : null}
+
+          <p
+            className="mt-2.5 rounded-md border border-[#242831] bg-[#151922] px-2 py-1.5 text-center text-[10px] font-semibold leading-4"
+            data-testid="caption-style-preview"
+            style={{
+              color: project.captionStyle.color,
+              fontFamily: CAPTION_FONT_STACKS[project.captionStyle.fontFamily],
+              fontSize: `${Math.min(project.captionStyle.fontSize, 22)}px`,
+              backgroundColor:
+                project.captionStyle.background === "solid"
+                  ? `${project.captionStyle.backgroundColor}cc`
+                  : "transparent",
+            }}
+          >
+            Caption preview
+          </p>
         </section>
 
         {project.transcript.length > 0 ? (

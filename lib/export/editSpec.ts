@@ -1,7 +1,7 @@
 import { BASE_AUDIO_POLICY, BROLL_AUDIO_POLICY } from "@/lib/editor/audioPolicy";
 import type {
   Caption,
-  CaptionPosition,
+  CaptionStyle,
   GeneratedBrollSuggestion,
   Overlay,
   Project,
@@ -105,9 +105,7 @@ export interface EditSpec {
     >;
   };
   captions: EditSpecCaption[];
-  captionStyle: {
-    position: CaptionPosition;
-  };
+  captionStyle: CaptionStyle;
   audioPolicy: {
     masterSource: "base";
     baseAudio: typeof BASE_AUDIO_POLICY;

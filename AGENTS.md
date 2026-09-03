@@ -112,6 +112,7 @@ Planning only:
 - `update_generated_broll_suggestion`
 - `remove_generated_broll_suggestion`
 - `set_pacing_preference`
+- `set_caption_style`
 - `replan_unlocked_sections`
 
 Approved only:

@@ -83,9 +83,43 @@ export interface Caption {
 
 export type CaptionPosition = "top" | "center" | "bottom";
 
+export type CaptionFontFamily =
+  | "inter"
+  | "roboto"
+  | "poppins"
+  | "montserrat"
+  | "oswald"
+  | "bebas-neue";
+
+export type CaptionBackground = "none" | "solid";
+
 export interface CaptionStyle {
   position: CaptionPosition;
+  fontFamily: CaptionFontFamily;
+  /** Preview pixel size; also drives the ffmpeg burn-in font size. */
+  fontSize: number;
+  /** 6-digit hex, e.g. "#ffffff". */
+  color: string;
+  background: CaptionBackground;
+  /** 6-digit hex, used only when background is "solid". */
+  backgroundColor: string;
 }
+
+export interface SetCaptionStyleInput {
+  position?: CaptionPosition;
+  fontFamily?: CaptionFontFamily;
+  fontSize?: number;
+  color?: string;
+  background?: CaptionBackground;
+  backgroundColor?: string;
+}
+
+export interface SetCaptionStyleSuccess {
+  ok: true;
+  captionStyle: CaptionStyle;
+}
+
+export type SetCaptionStyleResult = SetCaptionStyleSuccess | ToolFailure;
 
 export interface AddCaptionInput {
   start: number;

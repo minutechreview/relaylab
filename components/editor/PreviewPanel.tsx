@@ -25,6 +25,7 @@ import {
   ASPECT_RATIO_PRESETS,
   numericAspectRatio,
 } from "@/lib/editor/aspectRatio";
+import { CAPTION_FONT_STACKS } from "@/lib/editor/captionStyle";
 import { findActiveCaption } from "@/lib/editor/captions";
 import { timelineTimeToSourceTime } from "@/lib/editor/timeline";
 import type { BrollAsset } from "@/lib/editor/types";
@@ -166,6 +167,19 @@ export function PreviewPanel({
     center: "top-1/2 -translate-y-1/2",
     bottom: "bottom-4",
   }[project.captionStyle.position];
+  const captionStyleVars = {
+    fontFamily: CAPTION_FONT_STACKS[project.captionStyle.fontFamily],
+    fontSize: `${project.captionStyle.fontSize}px`,
+    color: project.captionStyle.color,
+    backgroundColor:
+      project.captionStyle.background === "solid"
+        ? `${project.captionStyle.backgroundColor}cc`
+        : "transparent",
+    textShadow:
+      project.captionStyle.background === "none"
+        ? "0 1px 3px rgba(0,0,0,.85), 0 0 8px rgba(0,0,0,.6)"
+        : undefined,
+  };
 
   const importDroppedBase = useCallback(
     (event: DragEvent<HTMLElement>) => {
@@ -424,9 +438,10 @@ export function PreviewPanel({
           {captionsEnabled && activeCaption ? (
             <div
               aria-live="polite"
-              className={`absolute left-1/2 z-30 max-w-[86%] -translate-x-1/2 rounded-md bg-black/80 px-3.5 py-2 text-center text-[13px] font-semibold leading-5 text-white shadow-[0_4px_16px_rgba(0,0,0,.4)] ${captionPositionClass}`}
+              className={`absolute left-1/2 z-30 max-w-[86%] -translate-x-1/2 rounded-md px-3.5 py-2 text-center font-semibold leading-5 shadow-[0_4px_16px_rgba(0,0,0,.4)] ${captionPositionClass}`}
               data-caption-position={project.captionStyle.position}
               data-testid="active-caption"
+              style={captionStyleVars}
             >
               {activeCaption.text}
             </div>

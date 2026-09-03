@@ -1,4 +1,5 @@
 import { generateCaptionsFromTranscript } from "@/lib/editor/captions";
+import { DEFAULT_CAPTION_STYLE } from "@/lib/editor/captionStyle";
 import type { Project } from "@/lib/editor/types";
 
 const demoProject: Project = {
@@ -177,9 +178,7 @@ const demoProject: Project = {
     },
   ],
   captions: [],
-  captionStyle: {
-    position: "bottom",
-  },
+  captionStyle: { ...DEFAULT_CAPTION_STYLE },
   pacingPreference: {
     maxTalkingHeadSeconds: 15,
   },

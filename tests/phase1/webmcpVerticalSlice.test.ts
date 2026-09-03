@@ -119,6 +119,7 @@ describe("Phase 1 WebMCP vertical slice", () => {
       "remove_overlay_proposal",
       "replan_unlocked_sections",
       "search_broll",
+      "set_caption_style",
       "set_pacing_preference",
       "update_generated_broll_suggestion",
       "update_overlay_proposal",
@@ -135,11 +136,12 @@ describe("Phase 1 WebMCP vertical slice", () => {
       "remove_overlay_proposal",
       "replan_unlocked_sections",
       "search_broll",
+      "set_caption_style",
       "set_pacing_preference",
       "update_generated_broll_suggestion",
       "update_overlay_proposal",
     ]);
-    expect(modelContext.registrationCalls).toHaveLength(14);
+    expect(modelContext.registrationCalls).toHaveLength(15);
 
     const signals = modelContext.registrationCalls.map(
       ({ options }) => options?.signal,
@@ -161,7 +163,7 @@ describe("Phase 1 WebMCP vertical slice", () => {
   it("supports native Chrome invoking execute without callback options", async () => {
     const store = createRelayLabStore(createDemoProject());
     const tools = [...createRelayLabTools(store), ...createApprovalTools(store)];
-    expect(tools).toHaveLength(15);
+    expect(tools).toHaveLength(16);
 
     // Chrome's native WebMCP bridge currently supplies only the input object,
     // while webmcp-types also models an optional per-invocation signal context.
@@ -173,7 +175,7 @@ describe("Phase 1 WebMCP vertical slice", () => {
         return nativeExecute({});
       }),
     );
-    expect(outcomes).toHaveLength(15);
+    expect(outcomes).toHaveLength(16);
     expect(
       outcomes[
         tools.findIndex(({ name }) => name === "get_project_summary")
@@ -284,6 +286,7 @@ describe("Phase 1 WebMCP vertical slice", () => {
       "remove_overlay_proposal",
       "replan_unlocked_sections",
       "search_broll",
+      "set_caption_style",
       "set_pacing_preference",
       "update_generated_broll_suggestion",
       "update_overlay_proposal",

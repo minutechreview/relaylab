@@ -35,6 +35,7 @@ describe("Phase 2 approval-gated WebMCP lifecycle", () => {
       "remove_overlay_proposal",
       "replan_unlocked_sections",
       "search_broll",
+      "set_caption_style",
       "set_pacing_preference",
       "update_generated_broll_suggestion",
       "update_overlay_proposal",

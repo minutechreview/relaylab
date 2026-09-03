@@ -1,5 +1,6 @@
 import { ASPECT_RATIO_EXPORT_DIMENSIONS } from "@/lib/editor/aspectRatio";
-import type { CaptionPosition, Project } from "@/lib/editor/types";
+import { CAPTION_FONT_EXPORT_NAMES, hexToAssColor } from "@/lib/editor/captionStyle";
+import type { CaptionStyle, Project } from "@/lib/editor/types";
 
 import {
   createEditSpec,
@@ -127,7 +128,7 @@ function sortCommittedOverlays(overlays: EditSpecOverlay[]): EditSpecOverlay[] {
 function buildFilterComplex(
   committedOverlays: EditSpecOverlay[],
   captionFileName: string | null,
-  captionPosition: CaptionPosition,
+  captionStyle: CaptionStyle,
   exportDimensions: { width: number; height: number },
 ): string {
   const filters = ["[0:v:0]setpts=PTS-STARTPTS[base0]"];
@@ -159,10 +160,29 @@ function buildFilterComplex(
   baseLabel = "canvas";
 
   if (captionFileName) {
-    const alignment = { top: 8, center: 5, bottom: 2 }[captionPosition];
-    const margin = captionPosition === "center" ? 0 : 48;
+    const alignment = { top: 8, center: 5, bottom: 2 }[captionStyle.position];
+    const margin = captionStyle.position === "center" ? 0 : 48;
+    const styleParts = [
+      `Alignment=${alignment}`,
+      `MarginV=${margin}`,
+      `Fontsize=${captionStyle.fontSize}`,
+      `FontName=${CAPTION_FONT_EXPORT_NAMES[captionStyle.fontFamily]}`,
+      // Alpha 00 = fully opaque text.
+      `PrimaryColour=${hexToAssColor(captionStyle.color, "00")}`,
+      "Shadow=0",
+    ];
+    if (captionStyle.background === "solid") {
+      styleParts.push(
+        "BorderStyle=3",
+        "Outline=2",
+        // Alpha 33 ~= 80% opaque box, matching the live preview's bg-black/80.
+        `BackColour=${hexToAssColor(captionStyle.backgroundColor, "33")}`,
+      );
+    } else {
+      styleParts.push("BorderStyle=1", "Outline=2", "OutlineColour=&H000000");
+    }
     filters.push(
-      `[${baseLabel}]subtitles=filename='${captionFileName}':force_style='Alignment=${alignment},MarginV=${margin},Fontsize=24,Outline=2,Shadow=0'[vout]`,
+      `[${baseLabel}]subtitles=filename='${captionFileName}':force_style='${styleParts.join(",")}'[vout]`,
     );
   } else {
     filters.push(`[${baseLabel}]null[vout]`);
@@ -235,7 +255,7 @@ export function createFfmpegExport(
   const filterComplex = buildFilterComplex(
     committedOverlays,
     captionSidecar?.fileName ?? null,
-    spec.captionStyle.position,
+    spec.captionStyle,
     ASPECT_RATIO_EXPORT_DIMENSIONS[project.aspectRatio],
   );
 

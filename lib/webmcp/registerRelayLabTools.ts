@@ -202,6 +202,28 @@ const setPacingPreferenceSchema = z.object({
   maxTalkingHeadSeconds: z.number().finite().min(5).max(30),
 }).strict();
 
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+const setCaptionStyleSchema = z
+  .object({
+    position: z.enum(["top", "center", "bottom"]).optional(),
+    fontFamily: z
+      .enum(["inter", "roboto", "poppins", "montserrat", "oswald", "bebas-neue"])
+      .optional(),
+    fontSize: z.number().finite().min(12).max(56).optional(),
+    color: z.string().regex(HEX_COLOR_PATTERN, "must be a 6-digit hex color, e.g. #ffffff").optional(),
+    background: z.enum(["none", "solid"]).optional(),
+    backgroundColor: z
+      .string()
+      .regex(HEX_COLOR_PATTERN, "must be a 6-digit hex color, e.g. #000000")
+      .optional(),
+  })
+  .strict()
+  .refine(
+    (value) => Object.values(value).some((field) => field !== undefined),
+    "At least one caption style field must be provided.",
+  );
+
 const replanUnlockedSectionsSchema = z.object({
   objective: z.string().trim().min(1).max(500).optional(),
   preserveHumanChanges: z.literal(true),
@@ -232,6 +254,7 @@ export const PLANNING_MUTATION_TOOL_NAMES = [
   "update_generated_broll_suggestion",
   "remove_generated_broll_suggestion",
   "set_pacing_preference",
+  "set_caption_style",
   "replan_unlocked_sections",
 ] as const;
 export const ALL_RELAYLAB_TOOL_NAMES = [
@@ -717,6 +740,56 @@ export function createPlanningTools(store: RelayLabStoreApi): WebMCP.ModelContex
         const parsed = setPacingPreferenceSchema.safeParse(rawInput);
         if (!parsed.success) return invalidArguments("set_pacing_preference", parsed.error);
         return store.getState().setPacingPreference(parsed.data.maxTalkingHeadSeconds);
+      },
+    },
+    {
+      name: "set_caption_style",
+      title: "Set caption style",
+      description:
+        "Set one or more caption presentation fields: position (top/center/bottom), fontFamily (one of a small free-font preset list), fontSize (12-56px, clamped), text color, background mode (none/solid), and background color. Only provided fields change; omitted fields keep their current value. Planning-only. Applies to both the live preview and the burned-in ffmpeg export.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          position: {
+            type: "string",
+            enum: ["top", "center", "bottom"],
+            description: "Caption vertical placement.",
+          },
+          fontFamily: {
+            type: "string",
+            enum: ["inter", "roboto", "poppins", "montserrat", "oswald", "bebas-neue"],
+            description: "Caption font preset.",
+          },
+          fontSize: {
+            type: "number",
+            minimum: 12,
+            maximum: 56,
+            description: "Caption font size in pixels, clamped to 12-56.",
+          },
+          color: {
+            type: "string",
+            pattern: "^#[0-9a-fA-F]{6}$",
+            description: "Caption text color as a 6-digit hex string, e.g. #ffffff.",
+          },
+          background: {
+            type: "string",
+            enum: ["none", "solid"],
+            description: "Whether captions render on a solid background box or with no box.",
+          },
+          backgroundColor: {
+            type: "string",
+            pattern: "^#[0-9a-fA-F]{6}$",
+            description: "Caption background box color as a 6-digit hex string, used only when background is solid.",
+          },
+        },
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: false, untrustedContentHint: false },
+      execute: async (rawInput, options) => {
+        throwIfCancelled(options?.signal);
+        const parsed = setCaptionStyleSchema.safeParse(rawInput);
+        if (!parsed.success) return invalidArguments("set_caption_style", parsed.error);
+        return store.getState().setCaptionStyle(parsed.data);
       },
     },
     {

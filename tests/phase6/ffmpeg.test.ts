@@ -132,6 +132,35 @@ describe("Phase 6 ffmpeg export", () => {
     expect(result.filterComplex).toContain("Alignment=8,MarginV=48");
   });
 
+  it("burns the human font, size, and text color into the caption filter", () => {
+    const project = createDemoProject();
+    project.captionStyle.fontFamily = "oswald";
+    project.captionStyle.fontSize = 32;
+    project.captionStyle.color = "#ff0000";
+    const result = createFfmpegExport(project);
+    expectSuccess(result);
+    expect(result.filterComplex).toContain("Fontsize=32");
+    expect(result.filterComplex).toContain("FontName=Oswald");
+    // #ff0000 -> ASS &H00BBGGRR -> blue=00, green=00, red=ff
+    expect(result.filterComplex).toContain("PrimaryColour=&H000000FF");
+  });
+
+  it("renders a solid caption background as an opaque box, and none as an outlined style", () => {
+    const project = createDemoProject();
+    project.captionStyle.background = "solid";
+    project.captionStyle.backgroundColor = "#00ff00";
+    const solid = createFfmpegExport(project);
+    expectSuccess(solid);
+    expect(solid.filterComplex).toContain("BorderStyle=3");
+    expect(solid.filterComplex).toContain("BackColour=&H3300FF00");
+
+    project.captionStyle.background = "none";
+    const none = createFfmpegExport(project);
+    expectSuccess(none);
+    expect(none.filterComplex).toContain("BorderStyle=1");
+    expect(none.filterComplex).not.toContain("BackColour");
+  });
+
   it("formats SRT across hour boundaries and normalizes line endings", () => {
     expect(
       createSrt([

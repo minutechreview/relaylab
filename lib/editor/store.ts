@@ -3,6 +3,12 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import { BASE_AUDIO_POLICY, BROLL_AUDIO_POLICY } from "./audioPolicy";
 import { buildGenerationSuggestionCopy, planSuggestedPlacements, type SuggestPlacementsInput } from "./autoSuggest";
 import { generateCaptionsFromTranscript } from "./captions";
+import {
+  clampCaptionFontSize,
+  isCaptionBackground,
+  isCaptionFontFamily,
+  isValidHexColor,
+} from "./captionStyle";
 import { getPlanPreflight } from "./planPreflight";
 import { getEditPlan as deriveEditPlan } from "./editPlan";
 import { replanUnlockedSections as replanUnlockedSectionsImpl } from "./replan";
@@ -51,6 +57,8 @@ import type {
   ReplaceBaseMediaResult,
   ReplanUnlockedSectionsInput,
   ReplanUnlockedSectionsResult,
+  SetCaptionStyleInput,
+  SetCaptionStyleResult,
   SetPacingPreferenceResult,
   SplitOverlayResult,
   StaleTimelineFailure,
@@ -94,6 +102,7 @@ export interface RelayLabState {
   updateCaption: (captionId: string, patch: UpdateCaptionPatch) => boolean;
   removeCaption: (captionId: string) => boolean;
   setCaptionPosition: (position: CaptionPosition) => boolean;
+  setCaptionStyle: (patch: SetCaptionStyleInput) => SetCaptionStyleResult;
   moveOverlay: (overlayId: string, timelineStart: number) => boolean;
   resizeOverlayStart: (overlayId: string, timelineStart: number) => boolean;
   resizeOverlayEnd: (overlayId: string, timelineEnd: number) => boolean;
@@ -237,6 +246,10 @@ function invalidProjectState(expected: "planning" | "approved", actual: string):
     code: "INVALID_PROJECT_STATE",
     message: `This action requires project status ${expected}; current status is ${actual}.`,
   };
+}
+
+function invalidArgumentsFailure(message: string): ToolFailure {
+  return { ok: false, code: "INVALID_ARGUMENTS", message };
 }
 
 function missingBaseTimelineFailure(): ToolFailure {
@@ -1411,9 +1424,48 @@ export function createRelayLabStore(initialProject: Project): RelayLabStoreApi {
         !(["top", "center", "bottom"] as const).includes(position)
       ) return false;
       set((current) => ({
-        project: { ...current.project, captionStyle: { position } },
+        project: {
+          ...current.project,
+          captionStyle: { ...current.project.captionStyle, position },
+        },
       }));
       return true;
+    },
+
+    setCaptionStyle: (patch) => {
+      const state = get();
+      if (state.project.status !== "planning") {
+        return invalidProjectState("planning", state.project.status);
+      }
+      if (patch.position !== undefined && !(["top", "center", "bottom"] as const).includes(patch.position)) {
+        return invalidArgumentsFailure("Caption position must be top, center, or bottom.");
+      }
+      if (patch.fontFamily !== undefined && !isCaptionFontFamily(patch.fontFamily)) {
+        return invalidArgumentsFailure("Caption fontFamily is not one of the supported presets.");
+      }
+      if (patch.background !== undefined && !isCaptionBackground(patch.background)) {
+        return invalidArgumentsFailure('Caption background must be "none" or "solid".');
+      }
+      if (patch.color !== undefined && !isValidHexColor(patch.color)) {
+        return invalidArgumentsFailure("Caption color must be a 6-digit hex color, e.g. #ffffff.");
+      }
+      if (patch.backgroundColor !== undefined && !isValidHexColor(patch.backgroundColor)) {
+        return invalidArgumentsFailure("Caption backgroundColor must be a 6-digit hex color, e.g. #000000.");
+      }
+
+      const current = state.project.captionStyle;
+      const next = {
+        position: patch.position ?? current.position,
+        fontFamily: patch.fontFamily ?? current.fontFamily,
+        fontSize: patch.fontSize !== undefined ? clampCaptionFontSize(patch.fontSize) : current.fontSize,
+        color: patch.color ?? current.color,
+        background: patch.background ?? current.background,
+        backgroundColor: patch.backgroundColor ?? current.backgroundColor,
+      };
+      set((currentState) => ({
+        project: { ...currentState.project, captionStyle: next },
+      }));
+      return { ok: true, captionStyle: next };
     },
 
     moveOverlay: (overlayId, timelineStart) => {

@@ -1,3 +1,4 @@
+import { DEFAULT_CAPTION_STYLE } from "./captionStyle";
 import type { Project } from "./types";
 
 const blankProject: Project = {
@@ -17,9 +18,7 @@ const blankProject: Project = {
   overlays: [],
   generationSuggestions: [],
   captions: [],
-  captionStyle: {
-    position: "bottom",
-  },
+  captionStyle: { ...DEFAULT_CAPTION_STYLE },
   pacingPreference: {
     maxTalkingHeadSeconds: 15,
   },
