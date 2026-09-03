@@ -104,6 +104,17 @@ export function SparkLineIcon(props: IconProps) {
   );
 }
 
+export function WandIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 20 15 9" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+      <path d="M13 6.5 15 4.5 17 6.5 15 8.5Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
+      <path d="M18.5 11v2.4M17.3 12.2h2.4" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+      <path d="M6.5 15.5v2M5.5 16.5h2" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+    </IconBase>
+  );
+}
+
 export function UploadIcon(props: IconProps) {
   return (
     <IconBase {...props}>

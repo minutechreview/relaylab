@@ -74,7 +74,7 @@ export function BrollPreviewVideo({
   return (
     <video
       aria-label={`Muted B-roll preview: ${asset.name}`}
-      className="absolute inset-0 h-full w-full object-cover"
+      className="absolute inset-0 h-full w-full object-contain"
       data-broll-audio-policy="muted"
       data-source-time={sourceTime.toFixed(3)}
       muted

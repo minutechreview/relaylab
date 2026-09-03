@@ -1,6 +1,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { BASE_AUDIO_POLICY, BROLL_AUDIO_POLICY } from "./audioPolicy";
+import { buildGenerationSuggestionCopy, planSuggestedPlacements, type SuggestPlacementsInput } from "./autoSuggest";
 import { generateCaptionsFromTranscript } from "./captions";
 import { getPlanPreflight } from "./planPreflight";
 import { getEditPlan as deriveEditPlan } from "./editPlan";
@@ -131,7 +132,18 @@ export interface RelayLabState {
   replanUnlockedSections: (
     input: ReplanUnlockedSectionsInput,
   ) => ReplanUnlockedSectionsResult;
+  suggestPlacements: (input?: SuggestPlacementsInput) => SuggestPlacementsResult;
 }
+
+export interface SuggestPlacementsSuccess {
+  ok: true;
+  createdOverlayIds: string[];
+  createdSuggestionIds: string[];
+  /** Candidates whose proposal was rejected by the underlying store action (e.g. a race with a human edit). */
+  skipped: number;
+}
+
+export type SuggestPlacementsResult = SuggestPlacementsSuccess | ToolFailure;
 
 export type RelayLabStoreApi = StoreApi<RelayLabState>;
 
@@ -1620,6 +1632,48 @@ export function createRelayLabStore(initialProject: Project): RelayLabStoreApi {
         changed: result.changed,
         timelineRevision: get().project.timelineRevision,
       };
+    },
+
+    suggestPlacements: (input = {}) => {
+      const state = get();
+      if (state.project.status !== "planning") {
+        return invalidProjectState("planning", state.project.status);
+      }
+
+      const candidates = planSuggestedPlacements(state.project, input);
+      const createdOverlayIds: string[] = [];
+      const createdSuggestionIds: string[] = [];
+      let skipped = 0;
+
+      for (const candidate of candidates) {
+        if (candidate.decision.kind === "uploaded_match") {
+          const result = get().proposeOverlay({
+            momentId: candidate.decision.match.momentId,
+            timelineStart: candidate.timelineStart,
+            duration: candidate.duration,
+            reason:
+              candidate.opportunity.detail ??
+              `${candidate.opportunity.reason} cue matched an uploaded clip.`,
+          });
+          if (result.ok) createdOverlayIds.push(result.overlayId);
+          else skipped += 1;
+        } else {
+          const { prompt, reason } = buildGenerationSuggestionCopy(
+            candidate.opportunity,
+            candidate.duration,
+          );
+          const result = get().proposeGeneratedBroll({
+            timelineStart: candidate.timelineStart,
+            duration: candidate.duration,
+            prompt,
+            reason,
+          });
+          if (result.ok) createdSuggestionIds.push(result.suggestionId);
+          else skipped += 1;
+        }
+      }
+
+      return { ok: true, createdOverlayIds, createdSuggestionIds, skipped };
     },
   }));
 }

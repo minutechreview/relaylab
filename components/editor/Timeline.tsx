@@ -23,6 +23,7 @@ import {
   SparkLineIcon,
   TrashIcon,
   UnlockIcon,
+  WandIcon,
   WarningIcon,
 } from "./Icons";
 import { getPlanPreflight } from "@/lib/editor/planPreflight";
@@ -68,6 +69,7 @@ export function Timeline({
   const placeBrollMoment = useRelayLabStore((state) => state.placeBrollMoment);
   const splitOverlay = useRelayLabStore((state) => state.splitOverlay);
   const setPacingPreference = useRelayLabStore((state) => state.setPacingPreference);
+  const suggestPlacements = useRelayLabStore((state) => state.suggestPlacements);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const seekFrameRef = useRef<number | null>(null);
@@ -75,9 +77,41 @@ export function Timeline({
   const [pacingDraft, setPacingDraft] = useState<string | null>(null);
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [isMomentDropActive, setIsMomentDropActive] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [suggestMessage, setSuggestMessage] = useState<string | null>(null);
   const hasTimeline = project.duration > 0;
   const timelineDuration = Math.max(project.duration, 1);
   const preflight = getPlanPreflight(project);
+
+  function runSuggestPlacements() {
+    setIsSuggesting(true);
+    setSuggestMessage(null);
+    try {
+      const result = suggestPlacements();
+      if (!result.ok) {
+        setSuggestMessage(result.message);
+        return;
+      }
+      const { createdOverlayIds, createdSuggestionIds, skipped } = result;
+      if (createdOverlayIds.length === 0 && createdSuggestionIds.length === 0) {
+        setSuggestMessage("No open slots found — the timeline already looks covered.");
+        return;
+      }
+      const parts: string[] = [];
+      if (createdOverlayIds.length > 0) {
+        parts.push(`${createdOverlayIds.length} clip${createdOverlayIds.length === 1 ? "" : "s"} placed`);
+      }
+      if (createdSuggestionIds.length > 0) {
+        parts.push(
+          `${createdSuggestionIds.length} generation suggestion${createdSuggestionIds.length === 1 ? "" : "s"} added`,
+        );
+      }
+      if (skipped > 0) parts.push(`${skipped} skipped`);
+      setSuggestMessage(`${parts.join(", ")}. Review each ghost — nothing is approved yet.`);
+    } finally {
+      setIsSuggesting(false);
+    }
+  }
 
   const selectedOverlay = project.overlays.find((overlay) => overlay.id === selectedOverlayId);
   const selectedSuggestion = project.generationSuggestions.find(
@@ -264,6 +298,34 @@ export function Timeline({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <button
+              className="flex h-7 items-center gap-1.5 rounded-md border border-[#4a3f6b] bg-[#221c38] px-2.5 text-[9px] font-semibold text-[#c9b8f5] outline-none transition hover:border-[#6a5aa0] disabled:cursor-not-allowed disabled:opacity-45"
+              data-testid="suggest-placements"
+              disabled={!hasTimeline || project.status !== "planning" || isSuggesting}
+              onClick={runSuggestPlacements}
+              title="Run a local first pass: places uploaded B-roll where it fits and adds generation suggestions for open slots. Everything stays a reviewable ghost."
+              type="button"
+            >
+              <WandIcon className="h-3.5 w-3.5" />
+              {isSuggesting ? "Suggesting…" : "Suggest placements"}
+            </button>
+            {suggestMessage ? (
+              <div className="absolute right-0 top-9 z-50 w-64 rounded-lg border border-[#343a43] bg-[#111419] p-2.5 text-[9px] leading-4 text-[#c5cbd4] shadow-[0_18px_50px_rgba(0,0,0,.55)]">
+                <div className="flex items-start justify-between gap-2">
+                  <span>{suggestMessage}</span>
+                  <button
+                    aria-label="Dismiss"
+                    className="icon-button h-5 w-5 shrink-0"
+                    onClick={() => setSuggestMessage(null)}
+                    type="button"
+                  >
+                    <CloseIcon className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
           <label className="flex items-center gap-1.5 text-[9px] text-[#828a96]" htmlFor="pacing-preference">
             <span className="hidden sm:inline">Pace</span>
             <input

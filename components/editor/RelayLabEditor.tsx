@@ -16,6 +16,7 @@ import {
   type EditorProjectKind,
 } from "./EditorProvider";
 import { ExportMenu } from "./ExportMenu";
+import { GenerateClipMenu } from "./GenerateClipMenu";
 import { CaptionsIcon, CheckIcon, FilmIcon, TranscriptIcon } from "./Icons";
 import { PreviewPanel } from "./PreviewPanel";
 import { SettingsPanel } from "./SettingsPanel";
@@ -113,6 +114,7 @@ function EditorWorkspace({ projectKind }: { projectKind: EditorProjectKind }) {
             </button>
             <WebMcpBridge />
             <SettingsPanel />
+            <GenerateClipMenu playhead={playhead} />
             <ExportMenu />
             <div
               aria-label={`Project ${project.status}`}
