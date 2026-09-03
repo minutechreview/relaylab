@@ -186,8 +186,57 @@ const demoProject: Project = {
   humanPreferences: [],
 };
 
-export function createDemoProject(): Project {
+/**
+ * Real 65s talking-head recording + its actual transcript (extracted with
+ * local Whisper, not written by hand), used only by the "showcase" variant
+ * below. Bundled at public/demo/avatar-declutter.mp4.
+ */
+const SHOWCASE_TRANSCRIPT: Project["transcript"] = [
+  { id: "tr_1", start: 0, end: 6.3, text: "I deleted 30 AI tools from my phone last month, and honestly, I got more done." },
+  { id: "tr_2", start: 6.3, end: 9.7, text: "Here's the thing nobody tells you when you're starting out with AI tools." },
+  { id: "tr_3", start: 9.7, end: 12.9, text: "You don't have a tool problem, you have a collecting problem." },
+  { id: "tr_4", start: 12.9, end: 16.4, text: "Every week there's a new tool, a new game changer." },
+  { id: "tr_5", start: 16.4, end: 20.0, text: "A new thing you absolutely need to try, so you download it," },
+  { id: "tr_6", start: 20.0, end: 24.1, text: "bookmark it, maybe open it once, and it just sits there." },
+  { id: "tr_7", start: 24.1, end: 28.3, text: "With the other 40 tools you were going to get to, I had tools for writing," },
+  { id: "tr_8", start: 28.3, end: 32.7, text: "tools for images, tools for research, tools for summarizing the tools I wasn't using." },
+  { id: "tr_9", start: 32.7, end: 37.0, text: "It's a lot, and the worst part, the more tools you have, the less you actually do," },
+  { id: "tr_10", start: 37.0, end: 40.6, text: "because you spend all your time picking which one to use instead of just" },
+  { id: "tr_11", start: 41.8, end: 47.6, text: "using one. So I deleted everything I hadn't opened in two weeks," },
+  { id: "tr_12", start: 48.2, end: 54.1, text: "kept three tools, just three, one for writing, one for images, one for research, that's it." },
+  { id: "tr_13", start: 54.6, end: 59.0, text: "And within a week I had actually finished things, real things," },
+  { id: "tr_14", start: 59.6, end: 64.9, text: "not just tabs, you don't need more tools, you need to go deeper with the ones you already have." },
+];
+
+export interface CreateDemoProjectOptions {
+  /**
+   * Swaps in the real bundled talking-head video + its real transcript, and
+   * clears the placeholder B-roll/overlay/generation-suggestion fixtures —
+   * those were written to match the old synthetic "product clarity"
+   * narration and would be thematically mismatched against real footage.
+   * Used by the live /demo route. Defaults to false so the large existing
+   * test-fixture surface (~29 files import createDemoProject) keeps getting
+   * the original deterministic content unchanged.
+   */
+  showcase?: boolean;
+}
+
+export function createDemoProject(options: CreateDemoProjectOptions = {}): Project {
   const project = structuredClone(demoProject);
+  if (options.showcase) {
+    project.title = "Why I deleted 30 AI tools";
+    project.duration = 64.9;
+    project.baseVideo = {
+      id: "base_avatar_declutter",
+      name: "avatar-declutter.mp4",
+      duration: 64.9,
+      objectUrl: "/demo/avatar-declutter.mp4",
+    };
+    project.transcript = SHOWCASE_TRANSCRIPT;
+    project.brollAssets = [];
+    project.overlays = [];
+    project.generationSuggestions = [];
+  }
   project.captions = generateCaptionsFromTranscript(project.transcript);
   return project;
 }

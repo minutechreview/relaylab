@@ -14,7 +14,7 @@ import {
 
 const RelayLabStoreContext = createContext<RelayLabStoreApi | null>(null);
 
-export type EditorProjectKind = "blank" | "demo";
+export type EditorProjectKind = "blank" | "demo" | "showcase";
 
 export function EditorProvider({
   children,
@@ -26,7 +26,9 @@ export function EditorProvider({
   const storeRef = useRef<RelayLabStoreApi | null>(null);
   if (!storeRef.current) {
     const initialProject =
-      projectKind === "blank" ? createBlankProject() : createDemoProject();
+      projectKind === "blank"
+        ? createBlankProject()
+        : createDemoProject({ showcase: projectKind === "showcase" });
     storeRef.current = createRelayLabStore(initialProject);
   }
 

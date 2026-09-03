@@ -26,9 +26,7 @@ import { WebMcpBridge } from "./WebMcpBridge";
 function EditorWorkspace({ projectKind }: { projectKind: EditorProjectKind }) {
   const project = useRelayLabStore((state) => state.project);
   const approvePlan = useRelayLabStore((state) => state.approvePlan);
-  const [playhead, setPlayhead] = useState(() =>
-    projectKind === "demo" ? 21.8 : 0,
-  );
+  const [playhead, setPlayhead] = useState(0);
   const [sidePanel, setSidePanel] = useState<"library" | "transcript" | "captions" | null>(
     "library",
   );
@@ -177,9 +175,11 @@ function EditorWorkspace({ projectKind }: { projectKind: EditorProjectKind }) {
           <span>
             {PRODUCT_NAME_STATUS} · {localMediaCount > 0
               ? `${localMediaCount} local media source${localMediaCount === 1 ? "" : "s"} active`
-              : projectKind === "demo"
-                ? "deterministic demo metadata"
-                : "no media loaded yet"}
+              : projectKind === "showcase"
+                ? "bundled demo video"
+                : projectKind === "demo"
+                  ? "deterministic demo metadata"
+                  : "no media loaded yet"}
           </span>
           <span title="Base audio only; all B-roll permanently muted">Audio: base only</span>
         </footer>
