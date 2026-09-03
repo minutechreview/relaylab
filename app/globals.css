@@ -25,6 +25,12 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--text);
+  /* Defensive backstop alongside the viewport meta tag (app/layout.tsx):
+     without this, mobile Safari can still auto-inflate text size inside
+     narrow columns (the tightly-designed panel/button text in this app),
+     independent of any font-size the app actually sets. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -33,10 +39,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button,
-input,
-textarea {
-  font: inherit;
+/*
+ * Tailwind v4 puts its own reset/utilities inside `@layer base`/`@layer
+ * utilities`; a plain (unlayered) rule here would always beat them
+ * regardless of specificity, per the CSS cascade-layers spec — unlayered
+ * origin wins over ANY layered origin. Without `@layer base` here, this
+ * reset silently overrode every `text-[Npx]` utility on every button,
+ * input, and textarea in the app (they all just inherited ambient
+ * font-size instead), usually invisible until a long enough label at a
+ * small enough declared size actually overflowed/wrapped its box.
+ */
+@layer base {
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
 }
 
 button,

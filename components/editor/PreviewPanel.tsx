@@ -169,7 +169,12 @@ export function PreviewPanel({
   }[project.captionStyle.position];
   const captionStyleVars = {
     fontFamily: CAPTION_FONT_STACKS[project.captionStyle.fontFamily],
-    fontSize: `${project.captionStyle.fontSize}px`,
+    // The chosen size is a ceiling, not a fixed value: on a small preview
+    // (a phone's portrait canvas can be under 150px wide) that size wraps
+    // a full sentence into a wall of single-word lines. Scale down with
+    // the container's actual width via container query units, never
+    // exceeding what the human picked in the style panel.
+    fontSize: `clamp(12px, 8cqw, ${project.captionStyle.fontSize}px)`,
     color: project.captionStyle.color,
     backgroundColor:
       project.captionStyle.background === "solid"
@@ -323,7 +328,7 @@ export function PreviewPanel({
               : "h-auto w-full max-w-[1100px]"
           }`}
           data-preview-orientation={portraitPreview ? "portrait" : "landscape"}
-          style={{ aspectRatio: canvasAspectRatio }}
+          style={{ aspectRatio: canvasAspectRatio, containerType: "inline-size" }}
         >
           {project.baseVideo.objectUrl ? (
             <video
