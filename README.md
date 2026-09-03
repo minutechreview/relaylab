@@ -1,5 +1,7 @@
 # RelayLab
 
+[![CI](https://github.com/minutechreview/relaylab/actions/workflows/ci.yml/badge.svg)](https://github.com/minutechreview/relaylab/actions/workflows/ci.yml)
+
 > A human and an external AI agent co-edit the same B-roll timeline through a structured WebMCP contract.
 
 > Public name selected by the human on September 1, 2026. RelayLab’s hero is the shared human/agent WebMCP timeline—not automatic B-roll placement.
