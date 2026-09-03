@@ -156,7 +156,7 @@ test("uploads real local reels and previews one muted overlay on the base master
     { name: "broll-one.webm", mimeType: "video/webm", buffer: fixtureBuffer },
     { name: "broll-two.webm", mimeType: "video/webm", buffer: fixtureBuffer },
   ]);
-  await expect(page.getByText("2 B-roll reels loaded as video-only sources.")).toBeVisible();
+  await expect(page.getByText("2 B-roll reels loaded as muted, video/image sources.")).toBeVisible();
   await expect(page.getByText("broll-one.webm", { exact: true })).toBeVisible();
   await expect(page.getByText("broll-two.webm", { exact: true })).toBeVisible();
 

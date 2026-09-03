@@ -69,8 +69,8 @@ function EditorWorkspace({ projectKind }: { projectKind: EditorProjectKind }) {
   return (
     <main className="relaylab-main h-[100dvh] overflow-hidden bg-[#090a0c] p-2.5 text-[#f4f5f6]">
       <div className="relaylab-shell mx-auto flex h-full max-w-[1800px] flex-col gap-2.5">
-        <header className="flex h-12 shrink-0 items-center justify-between rounded-lg border border-[#242831] bg-[#101216] px-3 shadow-[0_12px_36px_rgba(0,0,0,.16)]">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="flex h-12 shrink-0 items-center justify-between gap-2 rounded-lg border border-[#242831] bg-[#101216] px-3 shadow-[0_12px_36px_rgba(0,0,0,.16)]">
+          <div className="flex min-w-0 shrink-0 items-center gap-3">
             <div className="flex items-center gap-2.5">
               <div className="relative h-7 w-7 overflow-hidden rounded-lg border border-[#35433d] bg-[#151b18]">
                 <span className="absolute left-[7px] top-[6px] h-[14px] w-px rotate-[24deg] bg-[#7ee2b8]" />
@@ -81,7 +81,7 @@ function EditorWorkspace({ projectKind }: { projectKind: EditorProjectKind }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="header-actions flex min-w-0 items-center gap-1.5 overflow-x-auto [&>*]:shrink-0">
             <button
               aria-label="Toggle B-roll library"
               aria-pressed={sidePanel === "library"}

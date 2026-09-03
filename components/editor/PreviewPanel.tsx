@@ -319,7 +319,7 @@ export function PreviewPanel({
         <div
           className={`relative max-h-full max-w-full overflow-hidden rounded-md border border-[#292d34] bg-black shadow-[0_24px_70px_rgba(0,0,0,.4)] ${
             portraitPreview
-              ? "h-full min-h-0 w-auto"
+              ? "h-full min-h-0 w-auto self-stretch"
               : "h-auto w-full max-w-[1100px]"
           }`}
           data-preview-orientation={portraitPreview ? "portrait" : "landscape"}

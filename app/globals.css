@@ -184,6 +184,13 @@ button,
 
   .preview-panel {
     order: 1;
+    /* `height` (not just `min-height`) is required here: a flex item sized
+       only by min-height + auto content does not count as a "definite"
+       size for descendants' percentage-height resolution. Without it, the
+       portrait aspect-ratio box inside (h-full + aspect-ratio) collapses
+       to ~0px on mobile even though this panel itself renders at the
+       correct height. */
+    height: 52dvh;
     min-height: 52dvh;
   }
 

@@ -101,6 +101,7 @@ test("agent proposal, human move, and timeline reread share one project", async 
   );
   expect(names).toEqual([
     "find_overlay_opportunities",
+    "get_edit_plan",
     "get_project_summary",
     "get_timeline",
     "get_transcript",
@@ -108,7 +109,9 @@ test("agent proposal, human move, and timeline reread share one project", async 
     "propose_overlay",
     "remove_generated_broll_suggestion",
     "remove_overlay_proposal",
+    "replan_unlocked_sections",
     "search_broll",
+    "set_caption_style",
     "set_pacing_preference",
     "update_generated_broll_suggestion",
     "update_overlay_proposal",
