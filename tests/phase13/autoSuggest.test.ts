@@ -53,9 +53,11 @@ describe("suggestPlacements: local first pass", () => {
   });
 
   it("falls back to generation suggestions (never overlays) when there is no B-roll to match", () => {
-    // The showcase project (real /demo content) intentionally ships with an
-    // empty B-roll library.
+    // Force an empty B-roll library regardless of fixture defaults, to
+    // isolate the no-match fallback path from any pre-seeded B-roll.
     const project = createDemoProject({ showcase: true });
+    project.brollAssets = [];
+    project.overlays = [];
     expect(project.brollAssets).toHaveLength(0);
     const store = createRelayLabStore(project);
 

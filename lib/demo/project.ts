@@ -208,15 +208,56 @@ const SHOWCASE_TRANSCRIPT: Project["transcript"] = [
   { id: "tr_14", start: 59.6, end: 64.9, text: "not just tabs, you don't need more tools, you need to go deeper with the ones you already have." },
 ];
 
+/**
+ * Real uploaded B-roll for the showcase route: a bundled excerpt of Anthropic's
+ * "Introducing Claude Science" product video (public/demo/claude-science-broll.mp4).
+ * Moments below are honest candidate windows manually reviewed against actual
+ * extracted frames (not invented) — a protein-structure research figure with
+ * its reproducible generation script, and a live agentic research-compute run
+ * (parallel co-fold jobs across ligand candidates). Both are clean product-UI
+ * shots with no burned-in marketing text.
+ */
+const SHOWCASE_BROLL_ASSET_ID = "claude_science_reel";
+const SHOWCASE_BROLL_ASSET = {
+  id: SHOWCASE_BROLL_ASSET_ID,
+  name: "claude-science-broll.mp4",
+  duration: 86,
+  objectUrl: "/demo/claude-science-broll.mp4",
+  origin: "uploaded" as const,
+  moments: [
+    {
+      id: "moment_claude_science_structure",
+      assetId: SHOWCASE_BROLL_ASSET_ID,
+      sourceStart: 15,
+      sourceEnd: 20,
+      description:
+        "A protein-structure research figure (PAH R408 structural context) with its reproducible PyMOL generation script shown alongside it.",
+      tags: ["research", "science", "protein", "structure", "reproducible", "data"],
+      analysisStatus: "indexed" as const,
+    },
+    {
+      id: "moment_claude_science_compute",
+      assetId: SHOWCASE_BROLL_ASSET_ID,
+      sourceStart: 47,
+      sourceEnd: 53,
+      description:
+        "An agentic research session running several parallel drug-docking compute jobs (ESMFold2 co-folds across ligand candidates) with live job status.",
+      tags: ["research", "science", "agent", "compute", "pipeline", "tools"],
+      analysisStatus: "indexed" as const,
+    },
+  ],
+};
+
 export interface CreateDemoProjectOptions {
   /**
    * Swaps in the real bundled talking-head video + its real transcript, and
-   * clears the placeholder B-roll/overlay/generation-suggestion fixtures —
-   * those were written to match the old synthetic "product clarity"
-   * narration and would be thematically mismatched against real footage.
-   * Used by the live /demo route. Defaults to false so the large existing
-   * test-fixture surface (~29 files import createDemoProject) keeps getting
-   * the original deterministic content unchanged.
+   * replaces the placeholder B-roll/overlay/generation-suggestion fixtures
+   * (written for the old synthetic "product clarity" narration, thematically
+   * mismatched against real footage) with a real uploaded B-roll reel and one
+   * ghost overlay placed against a matching transcript line. Used by the live
+   * /demo route. Defaults to false so the large existing test-fixture surface
+   * (~29 files import createDemoProject) keeps getting the original
+   * deterministic content unchanged.
    */
   showcase?: boolean;
 }
@@ -234,8 +275,23 @@ export function createDemoProject(options: CreateDemoProjectOptions = {}): Proje
       objectUrl: "/demo/avatar-declutter.mp4",
     };
     project.transcript = SHOWCASE_TRANSCRIPT;
-    project.brollAssets = [];
-    project.overlays = [];
+    project.brollAssets = [structuredClone(SHOWCASE_BROLL_ASSET)];
+    project.overlays = [
+      {
+        id: "ov_showcase_1",
+        assetId: SHOWCASE_BROLL_ASSET_ID,
+        momentId: "moment_claude_science_compute",
+        sourceStart: 47,
+        sourceEnd: 52.6,
+        timelineStart: 48.2,
+        timelineEnd: 53.8,
+        status: "ghost",
+        lockedByHuman: false,
+        reason:
+          '"kept three tools, just three, one for writing, one for images, one for research" — the research tool the speaker keeps, shown actually running.',
+        createdBy: "agent",
+      },
+    ];
     project.generationSuggestions = [];
   }
   project.captions = generateCaptionsFromTranscript(project.transcript);
