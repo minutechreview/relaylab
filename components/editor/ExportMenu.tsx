@@ -10,6 +10,7 @@ import {
 } from "@/lib/export";
 
 import { useRelayLabStore } from "./EditorProvider";
+import { HeaderMenuPanel, isInsideHeaderMenuPanel } from "./HeaderMenuPanel";
 import { ExportIcon } from "./Icons";
 
 type Feedback =
@@ -66,7 +67,8 @@ export function ExportMenu() {
     function closeOnOutsidePointer(event: PointerEvent) {
       if (
         event.target instanceof Node &&
-        !containerRef.current?.contains(event.target)
+        !containerRef.current?.contains(event.target) &&
+        !isInsideHeaderMenuPanel(event.target)
       ) {
         setIsOpen(false);
       }
@@ -178,10 +180,10 @@ export function ExportMenu() {
         <ExportIcon className="h-4 w-4" />
       </button>
 
-      {isOpen ? (
+      <HeaderMenuPanel anchorRef={containerRef} isOpen={isOpen}>
         <section
           aria-label="Export project"
-          className="absolute right-0 top-[calc(100%+8px)] z-50 w-[330px] rounded-xl border border-[#303640] bg-[#111419] p-3 shadow-[0_22px_70px_rgba(0,0,0,.55)]"
+          className="w-[330px] rounded-xl border border-[#303640] bg-[#111419] p-3 shadow-[0_22px_70px_rgba(0,0,0,.55)]"
           data-testid="export-menu"
           role="dialog"
         >
@@ -263,7 +265,7 @@ export function ExportMenu() {
             {feedback?.message ?? "Generated files never contain session-only object URLs."}
           </div>
         </section>
-      ) : null}
+      </HeaderMenuPanel>
     </div>
   );
 }

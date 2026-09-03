@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { HeaderMenuPanel } from "./HeaderMenuPanel";
 import { CheckIcon, CloseIcon, EyeIcon, EyeOffIcon, SettingsIcon, WarningIcon } from "./Icons";
 
 type ProviderStatus = "checking" | "available" | "not_configured";
@@ -34,6 +35,7 @@ async function fetchStatus(): Promise<CredentialsStatusResponse | null> {
  * read from this module or from credential storage).
  */
 export function SettingsPanel() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [openaiStatus, setOpenaiStatus] = useState<ProviderStatus>("checking");
   const [falStatus, setFalStatus] = useState<ProviderStatus>("checking");
@@ -203,7 +205,7 @@ export function SettingsPanel() {
   );
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -217,10 +219,10 @@ export function SettingsPanel() {
         <SettingsIcon className="h-4 w-4" />
       </button>
 
-      {open ? (
+      <HeaderMenuPanel anchorRef={containerRef} gapPx={10} isOpen={open}>
         <div
           aria-label="AI settings panel"
-          className="absolute right-0 top-[calc(100%+10px)] z-50 w-[360px] overflow-hidden rounded-xl border border-[#333943] bg-[#111419] shadow-[0_24px_70px_rgba(0,0,0,.55)]"
+          className="w-[360px] overflow-hidden rounded-xl border border-[#333943] bg-[#111419] shadow-[0_24px_70px_rgba(0,0,0,.55)]"
           data-testid="settings-panel"
           role="dialog"
         >
@@ -420,7 +422,7 @@ export function SettingsPanel() {
             </button>
           </div>
         </div>
-      ) : null}
+      </HeaderMenuPanel>
     </div>
   );
 }

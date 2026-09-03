@@ -2,9 +2,10 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useRelayLabStore, useRelayLabStoreApi } from "./EditorProvider";
+import { HeaderMenuPanel } from "./HeaderMenuPanel";
 import { LinkIcon } from "./Icons";
 import {
   ALL_RELAYLAB_TOOL_NAMES,
@@ -17,6 +18,7 @@ type BridgeStatus = "checking" | "available" | "unavailable" | "error";
 export function WebMcpBridge() {
   const store = useRelayLabStoreApi();
   const projectStatus = useRelayLabStore((state) => state.project.status);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<BridgeStatus>("checking");
   const [open, setOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<RegistrationSnapshot>({
@@ -72,7 +74,7 @@ export function WebMcpBridge() {
   }[status];
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         aria-label={`${copy}. Open WebMCP status.`}
         aria-expanded={open}
@@ -99,10 +101,10 @@ export function WebMcpBridge() {
         <span className="sr-only">{copy}</span>
       </button>
 
-      {open ? (
+      <HeaderMenuPanel anchorRef={containerRef} gapPx={10} isOpen={open}>
         <div
           aria-label="WebMCP debug panel"
-          className="absolute right-0 top-[calc(100%+10px)] z-50 w-[330px] overflow-hidden rounded-xl border border-[#333943] bg-[#111419] shadow-[0_24px_70px_rgba(0,0,0,.55)]"
+          className="w-[330px] overflow-hidden rounded-xl border border-[#333943] bg-[#111419] shadow-[0_24px_70px_rgba(0,0,0,.55)]"
           data-testid="webmcp-debug-panel"
           role="dialog"
         >
@@ -171,7 +173,7 @@ export function WebMcpBridge() {
             </p>
           </div>
         </div>
-      ) : null}
+      </HeaderMenuPanel>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useRelayLabStore } from "./EditorProvider";
+import { HeaderMenuPanel, isInsideHeaderMenuPanel } from "./HeaderMenuPanel";
 import { WandIcon } from "./Icons";
 
 const MIN_PROMPT_LENGTH = 10;
@@ -45,7 +46,11 @@ export function GenerateClipMenu({ playhead }: { playhead: number }) {
       if (event.key === "Escape") setIsOpen(false);
     }
     function closeOnOutsidePointer(event: PointerEvent) {
-      if (event.target instanceof Node && !containerRef.current?.contains(event.target)) {
+      if (
+        event.target instanceof Node &&
+        !containerRef.current?.contains(event.target) &&
+        !isInsideHeaderMenuPanel(event.target)
+      ) {
         setIsOpen(false);
       }
     }
@@ -90,10 +95,10 @@ export function GenerateClipMenu({ playhead }: { playhead: number }) {
         <WandIcon className="h-4 w-4" />
       </button>
 
-      {isOpen ? (
+      <HeaderMenuPanel anchorRef={containerRef} isOpen={isOpen}>
         <section
           aria-label="Generate AI clip"
-          className="absolute right-0 top-[calc(100%+8px)] z-50 w-[320px] rounded-xl border border-[#303640] bg-[#111419] p-3 shadow-[0_22px_70px_rgba(0,0,0,.55)]"
+          className="w-[320px] rounded-xl border border-[#303640] bg-[#111419] p-3 shadow-[0_22px_70px_rgba(0,0,0,.55)]"
           data-testid="generate-clip-menu"
           role="dialog"
         >
@@ -172,7 +177,7 @@ export function GenerateClipMenu({ playhead }: { playhead: number }) {
             </p>
           ) : null}
         </section>
-      ) : null}
+      </HeaderMenuPanel>
     </div>
   );
 }

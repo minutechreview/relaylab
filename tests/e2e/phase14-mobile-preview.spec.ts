@@ -74,3 +74,40 @@ test("small buttons render at their declared font-size, not an inherited one (ca
   // Content must fit the button's fixed height — no more two-line wrap.
   expect(style.scrollHeight).toBeLessThanOrEqual(Math.ceil(parseFloat(style.height)) + 1);
 });
+
+// Regression coverage: the header's icon row became horizontally scrollable
+// (see the test above) so every icon stays reachable on a narrow viewport.
+// But `overflow-x: auto` on a container implicitly makes overflow-y a
+// clipping context too (CSS spec), which clipped/misplaced every dropdown
+// menu anchored inside that row via plain `position: absolute` — the panel
+// would render but be unreachable/invisible ("stuck"), exactly as reported.
+// Fix: those panels now portal to document.body via HeaderMenuPanel,
+// positioned with `fixed` coordinates computed from the trigger's own rect
+// and clamped on-screen. Assert each one is fully within the viewport and
+// its content is actually clickable, for every trigger in the header.
+for (const { trigger, panel, optionTestId } of [
+  { trigger: "settings-open", panel: "settings-panel", optionTestId: null },
+  { trigger: "generate-clip-menu-trigger", panel: "generate-clip-menu", optionTestId: "generate-clip-prompt" },
+  { trigger: "export-menu-trigger", panel: "export-menu", optionTestId: "export-edit-json" },
+  { trigger: "webmcp-status", panel: "webmcp-debug-panel", optionTestId: null },
+]) {
+  test(`the ${trigger} dropdown renders fully on-screen and its contents are clickable (cascade-clipping regression)`, async ({
+    page,
+  }) => {
+    await page.goto("/demo");
+
+    await page.getByTestId(trigger).click();
+    const panelLocator = page.getByTestId(panel);
+    await expect(panelLocator).toBeVisible();
+
+    const box = await panelLocator.boundingBox();
+    expect(box).not.toBeNull();
+    const viewport = page.viewportSize()!;
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width + 1);
+
+    if (optionTestId) {
+      await expect(page.getByTestId(optionTestId)).toBeInViewport();
+    }
+  });
+}
