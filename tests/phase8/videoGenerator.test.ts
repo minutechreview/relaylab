@@ -36,6 +36,7 @@ describe("server-side fal.ai video provider", () => {
     expect(subscribe).toHaveBeenCalledWith("owner/configured-video-model", {
       input: {
         prompt: "A manager reviews a dashboard.",
+        prompt_expansion_mode: "balanced",
         duration: 5,
         aspect_ratio: "16:9",
       },
@@ -73,7 +74,7 @@ describe("server-side fal.ai video provider", () => {
       expect(subscribe).toHaveBeenCalledWith(
         "configured/model",
         expect.objectContaining({
-          input: { prompt: "A simple visual scene." },
+          input: { prompt: "A simple visual scene.", prompt_expansion_mode: "balanced" },
           abortSignal: signal,
         }),
       );

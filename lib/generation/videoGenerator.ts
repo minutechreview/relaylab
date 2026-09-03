@@ -83,7 +83,15 @@ export function createFalVideoGenerator(
 
   return {
     async generate(request, options) {
-      const input: Record<string, unknown> = { prompt: request.prompt };
+      const input: Record<string, unknown> = {
+        prompt: request.prompt,
+        // Required by some models (e.g. minimax/h3-max/text-to-video) with
+        // no default; harmless for models that don't define this field —
+        // fal endpoints ignore unrecognized input keys. "balanced" trades
+        // ~1s of extra latency for prompt rewriting versus the "quality"
+        // mode's up to ~30s.
+        prompt_expansion_mode: "balanced",
+      };
       if (request.duration !== undefined) input.duration = request.duration;
       if (request.aspectRatio !== undefined) input.aspect_ratio = request.aspectRatio;
 
