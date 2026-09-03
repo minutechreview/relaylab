@@ -269,16 +269,40 @@ export function PreviewPanel({
               data-base-audio-policy="master"
               onEnded={() => setIsPlaying(false)}
               onLoadedMetadata={(event) => {
-                const { videoWidth, videoHeight } = event.currentTarget;
+                const target = event.currentTarget;
+                const { videoWidth, videoHeight } = target;
                 if (videoWidth > 0 && videoHeight > 0) {
                   setBaseAspectRatio(videoWidth / videoHeight);
                 }
+                if (playhead > 0) target.currentTime = playhead;
+                // WebKit/Safari can report full readiness (readyState 4)
+                // and still never decode/paint a single visible frame for a
+                // freshly-loaded, not-yet-played video — a seek alone is
+                // not always sufficient to force that decode. Briefly
+                // muting, playing a fraction of a frame, and pausing is the
+                // standard reliable workaround; restore the real mute state
+                // (base video carries the master audio, so it starts
+                // unmuted) once done so nothing audible happens.
+                const wasMuted = target.muted;
+                target.muted = true;
+                void target
+                  .play()
+                  .then(() => {
+                    target.pause();
+                    if (playhead > 0) target.currentTime = playhead;
+                  })
+                  .catch(() => {
+                    // Autoplay blocked entirely; nothing more to try here.
+                  })
+                  .finally(() => {
+                    target.muted = wasMuted;
+                  });
               }}
               onPause={() => setIsPlaying(false)}
               onPlay={() => setIsPlaying(true)}
               onTimeUpdate={(event) => onPlayheadChange(event.currentTarget.currentTime)}
               playsInline
-              preload="metadata"
+              preload="auto"
               ref={baseRef}
               src={project.baseVideo.objectUrl}
             />
