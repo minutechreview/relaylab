@@ -78,7 +78,9 @@ describe("Phase 6 ffmpeg export", () => {
     expect(result.skippedGhostOverlayIds).toEqual([]);
     expect(result.argv.filter((argument) => argument === "-i")).toHaveLength(1);
     expect(result.filterComplex).toBe(
-      "[0:v:0]setpts=PTS-STARTPTS[base0];[base0]null[vout]",
+      "[0:v:0]setpts=PTS-STARTPTS[base0];" +
+        "[base0]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black[canvas];" +
+        "[canvas]null[vout]",
     );
     expect(audioMapArguments(result.argv)).toEqual(["0:a:0?"]);
   });
@@ -184,6 +186,26 @@ describe("Phase 6 ffmpeg export", () => {
     expect(result.renderedOverlayIds).toEqual(["ov_earlier", "ov_later"]);
     expect(result.filterComplex.indexOf("between(t,10,15.8)")).toBeLessThan(
       result.filterComplex.indexOf("between(t,12,16)"),
+    );
+  });
+
+  it("letterboxes to the project's chosen output canvas, regardless of overlays", () => {
+    const project = createDemoProject();
+    project.status = "committed";
+    project.overlays = [];
+
+    project.aspectRatio = "9:16";
+    const portrait = createFfmpegExport(project, { burnCaptions: false });
+    expectSuccess(portrait);
+    expect(portrait.filterComplex).toContain(
+      "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black",
+    );
+
+    project.aspectRatio = "1:1";
+    const square = createFfmpegExport(project, { burnCaptions: false });
+    expectSuccess(square);
+    expect(square.filterComplex).toContain(
+      "scale=1080:1080:force_original_aspect_ratio=decrease,pad=1080:1080:(ow-iw)/2:(oh-ih)/2:color=black",
     );
   });
 });

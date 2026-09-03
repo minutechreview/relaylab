@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { ASPECT_RATIO_EXPORT_DIMENSIONS } from "@/lib/editor/aspectRatio";
 import {
   createFfmpegExport,
   isFfmpegExportSuccess,
@@ -189,6 +190,16 @@ export function ExportMenu() {
             <p className="mt-1.5 text-[10px] leading-4 text-[#68717c]">
               Source and timeline ranges stay separate. Only base input audio is mapped;
               every B-roll input remains video-only.
+            </p>
+            <div className="mt-2 flex items-center justify-between rounded-md border border-[#242831] bg-[#0c0e11] px-2.5 py-2 text-[9px]">
+              <span className="text-[#68717c]">Output canvas</span>
+              <span className="font-mono text-[#c5cbd4]" data-testid="export-aspect-ratio">
+                {project.aspectRatio} · {ASPECT_RATIO_EXPORT_DIMENSIONS[project.aspectRatio].width}×
+                {ASPECT_RATIO_EXPORT_DIMENSIONS[project.aspectRatio].height}
+              </span>
+            </div>
+            <p className="mt-1 text-[8px] leading-4 text-[#5c6470]">
+              Change this from the aspect-ratio picker in the Preview panel.
             </p>
           </div>
 

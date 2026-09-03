@@ -12,6 +12,7 @@ import {
 import { useRelayLabStore, type EditorProjectKind } from "./EditorProvider";
 import {
   CaptionsIcon,
+  CheckIcon,
   MutedIcon,
   PauseIcon,
   PlayIcon,
@@ -19,6 +20,11 @@ import {
   VolumeIcon,
 } from "./Icons";
 import { useLocalMedia } from "./LocalMediaProvider";
+import {
+  ASPECT_RATIO_LABELS,
+  ASPECT_RATIO_PRESETS,
+  numericAspectRatio,
+} from "@/lib/editor/aspectRatio";
 import { findActiveCaption } from "@/lib/editor/captions";
 import { timelineTimeToSourceTime } from "@/lib/editor/timeline";
 import type { BrollAsset } from "@/lib/editor/types";
@@ -102,7 +108,8 @@ export function PreviewPanel({
   const [isPlaying, setIsPlaying] = useState(false);
   const [captionsEnabled, setCaptionsEnabled] = useState(true);
   const [isDraggingBase, setIsDraggingBase] = useState(false);
-  const [baseAspectRatio, setBaseAspectRatio] = useState(16 / 9);
+  const setAspectRatio = useRelayLabStore((state) => state.setAspectRatio);
+  const canvasAspectRatio = numericAspectRatio(project.aspectRatio);
   const activeOverlay = project.overlays
     .filter((overlay) => playhead >= overlay.timelineStart && playhead < overlay.timelineEnd)
     .sort((a, b) => b.timelineStart - a.timelineStart)[0];
@@ -127,10 +134,6 @@ export function PreviewPanel({
     }
   }, [playhead]);
 
-  useEffect(() => {
-    setBaseAspectRatio(16 / 9);
-  }, [project.baseVideo.objectUrl]);
-
   const togglePlayback = useCallback(() => {
     const video = baseRef.current;
     if (!video) return;
@@ -143,7 +146,7 @@ export function PreviewPanel({
 
   const canImportBase =
     baseImport.status !== "reading" && project.status === "planning";
-  const portraitPreview = baseAspectRatio < 1;
+  const portraitPreview = canvasAspectRatio < 1;
   const captionPositionClass = {
     top: "top-4",
     center: "top-1/2 -translate-y-1/2",
@@ -183,6 +186,37 @@ export function PreviewPanel({
           </div>
         </div>
         <div className="flex items-center gap-1.5 text-[10px]">
+          <details className="group relative">
+            <summary
+              className="flex h-7 cursor-pointer list-none items-center gap-1 rounded-md border border-[#2c313a] bg-[#14171b] px-2 text-[8px] font-bold uppercase tracking-[0.06em] text-[#a4abb5] outline-none transition hover:border-[#444b55] [&::-webkit-details-marker]:hidden"
+              data-testid="aspect-ratio-trigger"
+              title="Output canvas aspect ratio"
+            >
+              {project.aspectRatio}
+            </summary>
+            <div className="absolute right-0 top-9 z-50 w-40 rounded-lg border border-[#343a43] bg-[#111419] p-1.5 shadow-[0_18px_50px_rgba(0,0,0,.55)]">
+              {ASPECT_RATIO_PRESETS.map((ratio) => (
+                <button
+                  aria-pressed={project.aspectRatio === ratio}
+                  className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[9px] font-semibold transition ${
+                    project.aspectRatio === ratio
+                      ? "bg-[#1b392b] text-[#9de3c1]"
+                      : "text-[#a4abb5] hover:bg-[#191c21]"
+                  }`}
+                  data-testid={`aspect-ratio-option-${ratio}`}
+                  key={ratio}
+                  onClick={(event) => {
+                    setAspectRatio(ratio);
+                    event.currentTarget.closest("details")?.removeAttribute("open");
+                  }}
+                  type="button"
+                >
+                  {ASPECT_RATIO_LABELS[ratio]}
+                  {project.aspectRatio === ratio ? <CheckIcon className="h-3 w-3" /> : null}
+                </button>
+              ))}
+            </div>
+          </details>
           <span aria-label="Base audio is the master" className="flex h-7 w-7 items-center justify-center text-[#7ee2b8]" title="Base audio only"><VolumeIcon className="h-3.5 w-3.5" /></span>
           <span aria-label="B-roll is muted" className="flex h-7 w-7 items-center justify-center text-[#69717d]" title="B-roll muted"><MutedIcon className="h-3.5 w-3.5" /></span>
           <label
@@ -261,7 +295,7 @@ export function PreviewPanel({
               : "h-auto w-full max-w-[1100px]"
           }`}
           data-preview-orientation={portraitPreview ? "portrait" : "landscape"}
-          style={{ aspectRatio: baseAspectRatio }}
+          style={{ aspectRatio: canvasAspectRatio }}
         >
           {project.baseVideo.objectUrl ? (
             <video
@@ -270,10 +304,6 @@ export function PreviewPanel({
               onEnded={() => setIsPlaying(false)}
               onLoadedMetadata={(event) => {
                 const target = event.currentTarget;
-                const { videoWidth, videoHeight } = target;
-                if (videoWidth > 0 && videoHeight > 0) {
-                  setBaseAspectRatio(videoWidth / videoHeight);
-                }
                 if (playhead > 0) target.currentTime = playhead;
                 // WebKit/Safari can report full readiness (readyState 4)
                 // and still never decode/paint a single visible frame for a

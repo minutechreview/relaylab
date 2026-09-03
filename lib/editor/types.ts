@@ -111,11 +111,15 @@ export interface GeneratedBrollSuggestion {
   error?: string;
 }
 
+export type ProjectAspectRatio = "16:9" | "9:16" | "1:1" | "4:5";
+
 export interface Project {
   id: string;
   title: string;
   duration: number;
   status: ProjectStatus;
+  /** Explicit output canvas shape, independent of whatever the base video's own dimensions happen to be. */
+  aspectRatio: ProjectAspectRatio;
   baseVideo: BaseVideo;
   transcript: TranscriptSegment[];
   brollAssets: BrollAsset[];

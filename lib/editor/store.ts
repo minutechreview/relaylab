@@ -39,6 +39,7 @@ import type {
   Overlay,
   OverlayLockResult,
   Project,
+  ProjectAspectRatio,
   ProjectSummary,
   ProposalResult,
   ProposeGeneratedBrollInput,
@@ -103,6 +104,7 @@ export interface RelayLabState {
   findOverlayOpportunities: (input?: FindOverlayOpportunitiesInput) => OverlayOpportunity[];
   searchBroll: (query: SearchBrollQuery) => SearchBrollResult[];
   setPacingPreference: (maxTalkingHeadSeconds: number) => SetPacingPreferenceResult;
+  setAspectRatio: (aspectRatio: ProjectAspectRatio) => boolean;
   proposeGeneratedBroll: (
     input: ProposeGeneratedBrollInput,
   ) => GeneratedBrollSuggestionResult;
@@ -1592,6 +1594,16 @@ export function createRelayLabStore(initialProject: Project): RelayLabStoreApi {
         },
       }));
       return { ok: true, maxTalkingHeadSeconds: clamped };
+    },
+
+    setAspectRatio: (aspectRatio) => {
+      set((current) => ({
+        project: {
+          ...current.project,
+          aspectRatio,
+        },
+      }));
+      return true;
     },
 
     replanUnlockedSections: (input) => {

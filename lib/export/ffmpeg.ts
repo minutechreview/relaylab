@@ -1,3 +1,4 @@
+import { ASPECT_RATIO_EXPORT_DIMENSIONS } from "@/lib/editor/aspectRatio";
 import type { CaptionPosition, Project } from "@/lib/editor/types";
 
 import {
@@ -120,6 +121,7 @@ function buildFilterComplex(
   committedOverlays: EditSpecOverlay[],
   captionFileName: string | null,
   captionPosition: CaptionPosition,
+  exportDimensions: { width: number; height: number },
 ): string {
   const filters = ["[0:v:0]setpts=PTS-STARTPTS[base0]"];
   let baseLabel = "base0";
@@ -138,6 +140,16 @@ function buildFilterComplex(
     );
     baseLabel = nextBaseLabel;
   });
+
+  // Letterbox/pillarbox to the project's chosen output canvas. Safe
+  // regardless of the source's own dimensions: force_original_aspect_ratio
+  // never upscales past the target box, and pad is a no-op when the scaled
+  // frame already fills it exactly.
+  const { width, height } = exportDimensions;
+  filters.push(
+    `[${baseLabel}]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black[canvas]`,
+  );
+  baseLabel = "canvas";
 
   if (captionFileName) {
     const alignment = { top: 8, center: 5, bottom: 2 }[captionPosition];
@@ -196,6 +208,7 @@ export function createFfmpegExport(
     committedOverlays,
     captionSidecar?.fileName ?? null,
     spec.captionStyle.position,
+    ASPECT_RATIO_EXPORT_DIMENSIONS[project.aspectRatio],
   );
 
   const argv = ["ffmpeg", "-hide_banner", "-y", "-i", spec.sources.base.fileName];

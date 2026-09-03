@@ -6,6 +6,7 @@ const demoProject: Project = {
   title: "How great products earn attention",
   duration: 84.4,
   status: "planning",
+  aspectRatio: "16:9",
   baseVideo: {
     id: "base_founder_story",
     name: "founder-story.mp4",
@@ -226,6 +227,7 @@ export function createDemoProject(options: CreateDemoProjectOptions = {}): Proje
   if (options.showcase) {
     project.title = "Why I deleted 30 AI tools";
     project.duration = 64.9;
+    project.aspectRatio = "9:16";
     project.baseVideo = {
       id: "base_avatar_declutter",
       name: "avatar-declutter.mp4",

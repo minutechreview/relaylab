@@ -49,13 +49,18 @@ afterEach(() => {
 });
 
 describe("Phase 3 master-clock preview", () => {
-  it("adapts the program frame to portrait metadata without cropping the base", async () => {
+  it("renders the program frame at the project's explicit aspect ratio, independent of the loaded video's own dimensions, without cropping the base", async () => {
+    // The canvas shape is a project-level setting the human controls, not
+    // something auto-detected from whatever video happens to be loaded —
+    // a landscape-shaped source loaded into a 9:16 project still renders
+    // inside a 9:16 canvas (letterboxed via object-contain), never cropped.
     function PortraitHarness() {
       const store = useRelayLabStoreApi();
       useEffect(() => {
         store.setState((state) => ({
           project: {
             ...state.project,
+            aspectRatio: "9:16",
             baseVideo: { ...state.project.baseVideo, objectUrl: "blob:portrait" },
           },
         }));
@@ -71,8 +76,9 @@ describe("Phase 3 master-clock preview", () => {
     const video = await waitFor(() =>
       container.querySelector('[data-base-audio-policy="master"]') as HTMLVideoElement,
     );
-    Object.defineProperty(video, "videoWidth", { configurable: true, value: 1080 });
-    Object.defineProperty(video, "videoHeight", { configurable: true, value: 1920 });
+    // A landscape-shaped source, loaded into a portrait-canvas project.
+    Object.defineProperty(video, "videoWidth", { configurable: true, value: 1920 });
+    Object.defineProperty(video, "videoHeight", { configurable: true, value: 1080 });
     fireEvent.loadedMetadata(video);
 
     await waitFor(() =>

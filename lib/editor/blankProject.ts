@@ -5,6 +5,7 @@ const blankProject: Project = {
   title: "Untitled project",
   duration: 0,
   status: "planning",
+  aspectRatio: "16:9",
   baseVideo: {
     id: "base_empty",
     name: "No base video",
