@@ -1293,6 +1293,7 @@ export function createRelayLabStore(initialProject: Project): RelayLabStoreApi {
           name: media.name,
           duration: media.duration,
           objectUrl: media.objectUrl,
+          kind: media.kind ?? ("video" as const),
           origin: "uploaded" as const,
           moments: createLocalBrollIndex(id, media.name, media.duration),
         };

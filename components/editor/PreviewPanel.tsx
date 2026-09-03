@@ -77,6 +77,20 @@ export function BrollPreviewVideo({
 
   if (!asset.objectUrl) return null;
 
+  if (asset.kind === "image") {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- object URL, not an optimizable remote asset
+      <img
+        alt={`B-roll still: ${asset.name}`}
+        aria-label={`B-roll still preview: ${asset.name}`}
+        className="absolute inset-0 h-full w-full object-contain"
+        data-broll-audio-policy="muted"
+        data-source-time={sourceTime.toFixed(3)}
+        src={asset.objectUrl}
+      />
+    );
+  }
+
   return (
     <video
       aria-label={`Muted B-roll preview: ${asset.name}`}

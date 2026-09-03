@@ -189,6 +189,25 @@ describe("Phase 6 ffmpeg export", () => {
     );
   });
 
+  it("refuses to export a committed overlay backed by an image B-roll asset", () => {
+    const project = createDemoProject();
+    project.status = "committed";
+    project.overlays[0].status = "committed";
+    project.brollAssets = project.brollAssets.map((asset) =>
+      asset.id === project.overlays[0].assetId ? { ...asset, kind: "image" as const } : asset,
+    );
+
+    const result = createFfmpegExport(project, { burnCaptions: false });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "UNSUPPORTED_IMAGE_EXPORT",
+      message:
+        "ffmpeg export doesn't support image B-roll yet. Remove or replace the committed image overlay(s) before exporting, or download the edit JSON instead.",
+      imageOverlayIds: ["ov_demo_1"],
+    });
+  });
+
   it("letterboxes to the project's chosen output canvas, regardless of overlays", () => {
     const project = createDemoProject();
     project.status = "committed";

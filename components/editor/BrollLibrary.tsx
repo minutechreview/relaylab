@@ -76,7 +76,8 @@ export function BrollLibrary({
     const files = Array.from(event.dataTransfer.files).filter(
       (file) =>
         file.type.startsWith("video/") ||
-        /\.(?:mkv|mov|m4v|mp4|webm)$/iu.test(file.name),
+        file.type.startsWith("image/") ||
+        /\.(?:mkv|mov|m4v|mp4|webm|jpe?g|png|webp|gif|avif)$/iu.test(file.name),
     );
     if (files.length > 0) void importBrollVideos(files);
   }
@@ -92,7 +93,7 @@ export function BrollLibrary({
           <div className="mt-0.5 font-mono text-[9px] text-[#676f7b]">{assets.length} reels · {moments.length} moments</div>
         </div>
         <div className="flex items-center gap-1.5">
-          <span aria-label="B-roll is video only" className="flex h-7 w-7 items-center justify-center text-[#6f7782]" title="B-roll muted"><MutedIcon className="h-3.5 w-3.5" /></span>
+          <span aria-label="B-roll is muted video and images" className="flex h-7 w-7 items-center justify-center text-[#6f7782]" title="B-roll muted"><MutedIcon className="h-3.5 w-3.5" /></span>
           <label
             aria-label="Add B-roll reels"
             className={`icon-button h-7 w-7 cursor-pointer ${canImport ? "icon-button-active" : "pointer-events-none opacity-40"}`}
@@ -100,14 +101,14 @@ export function BrollLibrary({
             title={
               project.duration <= 0
                 ? "Upload the base talking-head video first."
-                : "Import video-only B-roll source reels"
+                : "Import video or image B-roll sources"
             }
           >
             <UploadIcon className="h-3.5 w-3.5" />
           </label>
           <input
-            accept="video/*,.mkv"
-            aria-label="Upload B-roll videos"
+            accept="video/*,image/*,.mkv"
+            aria-label="Upload B-roll videos or images"
             className="sr-only"
             disabled={!canImport}
             id="broll-upload"

@@ -50,9 +50,20 @@ interface LocalMediaContextValue {
 
 const LocalMediaContext = createContext<LocalMediaContextValue | null>(null);
 const VIDEO_EXTENSION = /\.(mp4|mov|m4v|webm|ogv|avi|mkv)$/i;
+const IMAGE_EXTENSION = /\.(jpe?g|png|webp|gif|avif)$/i;
+/** Fixed on-screen hold for an uploaded still image, per RelayLab's image B-roll spec. */
+export const IMAGE_BROLL_DURATION_SECONDS = 3;
 
 function isLikelyVideo(file: File): boolean {
   return file.type.startsWith("video/") || (!file.type && VIDEO_EXTENSION.test(file.name));
+}
+
+function isLikelyImage(file: File): boolean {
+  return file.type.startsWith("image/") || (!file.type && IMAGE_EXTENSION.test(file.name));
+}
+
+function isLikelyBrollMedia(file: File): boolean {
+  return isLikelyVideo(file) || isLikelyImage(file);
 }
 
 function errorMessage(error: unknown): string {
@@ -203,8 +214,8 @@ export function LocalMediaProvider({
       if (importingBrollRef.current) {
         return { ok: false, message: "B-roll files are already being read." };
       }
-      if (files.length === 0 || files.some((file) => !isLikelyVideo(file))) {
-        const message = "Choose one or more supported video files for B-roll.";
+      if (files.length === 0 || files.some((file) => !isLikelyBrollMedia(file))) {
+        const message = "Choose one or more supported video or image files for B-roll.";
         setBrollImport({ status: "error", message });
         return { ok: false, message };
       }
@@ -223,14 +234,18 @@ export function LocalMediaProvider({
       const createdUrls: string[] = [];
 
       try {
-        const descriptors = [];
+        const descriptors: { name: string; duration: number; objectUrl: string; kind: "video" | "image" }[] = [];
         // Metadata-only probes run sequentially so a large batch never loads
         // every source reel at the same time.
         for (const file of files) {
           const objectUrl = registry.create(file);
           createdUrls.push(objectUrl);
-          const { duration } = await readVideoMetadata(objectUrl, { signal });
-          descriptors.push({ name: file.name, duration, objectUrl });
+          if (isLikelyImage(file)) {
+            descriptors.push({ name: file.name, duration: IMAGE_BROLL_DURATION_SECONDS, objectUrl, kind: "image" });
+          } else {
+            const { duration } = await readVideoMetadata(objectUrl, { signal });
+            descriptors.push({ name: file.name, duration, objectUrl, kind: "video" });
+          }
         }
 
         const result = store.getState().addBrollMedia(descriptors);
@@ -240,14 +255,21 @@ export function LocalMediaProvider({
           return { ok: false, message: result.message };
         }
 
-        const message = `${result.assetIds.length} B-roll ${result.assetIds.length === 1 ? "reel" : "reels"} loaded as video-only sources.`;
+        const message = `${result.assetIds.length} B-roll ${result.assetIds.length === 1 ? "reel" : "reels"} loaded as muted, video/image sources.`;
         setBrollImport({ status: "complete", message });
         // Kick off real vision analysis per asset in the background. Import
         // itself never waits on this — an OpenAI outage or missing key must
         // not block getting usable (if unindexed) B-roll onto the timeline.
-        result.assetIds.forEach((assetId) => {
-          void analyzeBrollAssetImpl(assetId);
-        });
+        // Analysis targets video frames only; skip it for still images since
+        // there is no frame timeline to sample.
+        result.assetIds
+          .filter((assetId) => {
+            const asset = store.getState().project.brollAssets.find((candidate) => candidate.id === assetId);
+            return asset?.kind !== "image";
+          })
+          .forEach((assetId) => {
+            void analyzeBrollAssetImpl(assetId);
+          });
         return { ok: true, importedCount: result.assetIds.length, message };
       } catch (error) {
         createdUrls.forEach((url) => registry.revoke(url));

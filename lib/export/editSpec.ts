@@ -23,6 +23,8 @@ export interface EditSpecSource {
    */
   referenceKind: "portable-file-name" | "provider-url-requires-download";
   origin?: "demo" | "uploaded" | "generated";
+  /** Media kind for export handling. Absent means "video" (back-compat). */
+  kind?: "video" | "image";
   generation?: {
     provider: string;
     model: string;
@@ -333,6 +335,7 @@ export function createEditSpec(project: Project): EditSpec {
         ? ("provider-url-requires-download" as const)
         : ("portable-file-name" as const),
       audioPolicy: BROLL_AUDIO_POLICY,
+      ...(asset.kind === undefined ? {} : { kind: asset.kind }),
       ...(asset.origin === undefined ? {} : { origin: asset.origin }),
       ...(asset.generation === undefined
         ? {}

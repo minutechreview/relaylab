@@ -38,6 +38,8 @@ export interface BrollAsset {
   duration: number;
   objectUrl: string | null;
   moments: BrollMoment[];
+  /** Media kind for preview/export rendering. Absent means "video" (back-compat). */
+  kind?: "video" | "image";
   origin?: "demo" | "uploaded" | "generated";
   generation?: {
     provider: string;
@@ -218,6 +220,7 @@ export interface LocalMediaInput {
   name: string;
   duration: number;
   objectUrl: string;
+  kind?: "video" | "image";
 }
 
 export type PlanPreflightStatus = "ready" | "warnings" | "blocked";

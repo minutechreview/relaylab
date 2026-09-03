@@ -42,7 +42,14 @@ export interface FfmpegExportFailure {
   ghostOverlayIds: string[];
 }
 
-export type FfmpegExportResult = FfmpegExport | FfmpegExportFailure;
+export interface FfmpegImageExportFailure {
+  ok: false;
+  code: "UNSUPPORTED_IMAGE_EXPORT";
+  message: string;
+  imageOverlayIds: string[];
+}
+
+export type FfmpegExportResult = FfmpegExport | FfmpegExportFailure | FfmpegImageExportFailure;
 
 export function isFfmpegExportSuccess(
   result: FfmpegExportResult,
@@ -193,6 +200,27 @@ export function createFfmpegExport(
   }
 
   const committedOverlays = sortCommittedOverlays(spec.timeline.overlays);
+
+  // The ffmpeg filter chain below is built and tested for video-only overlay
+  // inputs (trim/scale2ref/overlay). Image B-roll would need a distinct
+  // -loop 1 input treatment that hasn't been implemented or verified, so
+  // fail explicitly rather than emit a script that silently mis-renders.
+  const imageAssetIds = new Set(
+    spec.sources.broll.filter((source) => source.kind === "image").map((source) => source.id),
+  );
+  const imageOverlayIds = committedOverlays
+    .filter((overlay) => imageAssetIds.has(overlay.assetId))
+    .map((overlay) => overlay.id);
+  if (imageOverlayIds.length > 0) {
+    return {
+      ok: false,
+      code: "UNSUPPORTED_IMAGE_EXPORT",
+      message:
+        "ffmpeg export doesn't support image B-roll yet. Remove or replace the committed image overlay(s) before exporting, or download the edit JSON instead.",
+      imageOverlayIds,
+    };
+  }
+
   const stem = slugifyFileStem(spec.project.title);
   const outputFileName = `${stem}-edit.mp4`;
   const burnCaptions = options.burnCaptions ?? true;

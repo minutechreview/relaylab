@@ -34,6 +34,12 @@ function ProjectObserver() {
       <output data-testid="local-assets">
         {project.brollAssets.filter((asset) => asset.objectUrl).map((asset) => asset.name).join(",")}
       </output>
+      <output data-testid="local-asset-kinds">
+        {project.brollAssets
+          .filter((asset) => asset.objectUrl)
+          .map((asset) => `${asset.name}:${asset.kind ?? "video"}:${asset.duration}`)
+          .join(",")}
+      </output>
     </div>
   );
 }
@@ -98,7 +104,7 @@ describe("local media import UI", () => {
     expect(screen.getByTestId("transcript-count").textContent).toBe("0");
     expect(screen.getByTestId("overlay-count").textContent).toBe("0");
 
-    fireEvent.change(screen.getByLabelText("Upload B-roll videos"), {
+    fireEvent.change(screen.getByLabelText("Upload B-roll videos or images"), {
       target: {
         files: [
           new File(["one"], "cafe.mp4", { type: "video/mp4" }),
@@ -129,7 +135,7 @@ describe("local media import UI", () => {
       .mockRejectedValueOnce(new Error("Unreadable second reel"));
 
     render(<MediaHarness />);
-    fireEvent.change(screen.getByLabelText("Upload B-roll videos"), {
+    fireEvent.change(screen.getByLabelText("Upload B-roll videos or images"), {
       target: {
         files: [
           new File(["one"], "one.mp4", { type: "video/mp4" }),
@@ -143,6 +149,42 @@ describe("local media import UI", () => {
     expect(new Set(revokeObjectURL.mock.calls.flat())).toEqual(
       new Set(["blob:local-1", "blob:local-2"]),
     );
+  });
+
+  it("imports an image as B-roll with a fixed hold duration and skips video-metadata probing", async () => {
+    render(<MediaHarness />);
+    fireEvent.change(screen.getByLabelText("Upload B-roll videos or images"), {
+      target: {
+        files: [new File(["chart"], "revenue-chart.png", { type: "image/png" })],
+      },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("asset-count").textContent).toBe(String(DEMO_ASSET_COUNT + 1)),
+    );
+    expect(screen.getByTestId("local-asset-kinds").textContent).toContain("revenue-chart.png:image:3");
+    expect(readVideoMetadata).not.toHaveBeenCalled();
+  });
+
+  it("imports a mixed batch of video and image B-roll in one drop", async () => {
+    vi.mocked(readVideoMetadata).mockResolvedValueOnce({ duration: 12 });
+
+    render(<MediaHarness />);
+    fireEvent.change(screen.getByLabelText("Upload B-roll videos or images"), {
+      target: {
+        files: [
+          new File(["one"], "office.mp4", { type: "video/mp4" }),
+          new File(["two"], "graph.jpg", { type: "image/jpeg" }),
+        ],
+      },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("asset-count").textContent).toBe(String(DEMO_ASSET_COUNT + 2)),
+    );
+    const kinds = screen.getByTestId("local-asset-kinds").textContent ?? "";
+    expect(kinds).toContain("office.mp4:video:12");
+    expect(kinds).toContain("graph.jpg:image:3");
   });
 
   it("creates transcript-backed captions only after a human starts transcription", async () => {

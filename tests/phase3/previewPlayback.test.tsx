@@ -108,6 +108,19 @@ describe("Phase 3 master-clock preview", () => {
     await waitFor(() => expect(video.currentTime).toBe(15.6));
   });
 
+  it("renders image-kind B-roll as a static <img>, never a <video>", async () => {
+    const asset = createDemoProject().brollAssets[0];
+    asset.objectUrl = "blob:active-image";
+    asset.kind = "image";
+    render(<BrollPreviewVideo asset={asset} isPlaying sourceTime={1.2} />);
+
+    const image = screen.getByLabelText(/B-roll still preview/) as HTMLImageElement;
+    expect(image.tagName).toBe("IMG");
+    expect(image.src).toContain("blob:active-image");
+    expect(image.className).toContain("object-contain");
+    expect(screen.queryByRole("img", { hidden: true })).not.toBeNull();
+  });
+
   it("uses base time as the clock, keeps base audio live, and lazily mounts one reel", async () => {
     function PlaybackHarness() {
       const store = useRelayLabStoreApi();
