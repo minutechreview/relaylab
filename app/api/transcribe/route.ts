@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error(
       "OpenAI transcription failed",
-      error instanceof Error ? error.name : "UnknownError",
+      error instanceof Error ? `${error.name}: ${error.message}` : "UnknownError",
     );
     return errorResponse(
       502,
