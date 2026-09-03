@@ -16,6 +16,7 @@ import {
 } from "@/lib/analysis/requestAnalyzeBroll";
 import type { RelayLabStoreApi } from "@/lib/editor/store";
 import type { TranscriptSegment } from "@/lib/editor/types";
+import { extractAudioTrack, isAudioExtractionSupported } from "@/lib/media/extractAudioTrack";
 import { createObjectUrlRegistry, type ObjectUrlRegistry } from "@/lib/media/objectUrlRegistry";
 import { readVideoMetadata } from "@/lib/media/readVideoMetadata";
 import {
@@ -275,23 +276,47 @@ export function LocalMediaProvider({
     }
     // Vercel's Node.js Serverless Functions reject request bodies above
     // ~4.5 MB at the platform level, well below OpenAI's own 25 MB limit —
-    // matches the server-side check in app/api/transcribe/route.ts. Fail
-    // fast client-side rather than waiting through a slow doomed upload.
+    // matches the server-side check in app/api/transcribe/route.ts.
     const isVercelDeployment =
       typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app");
     const maxBytes = isVercelDeployment ? 4 * 1024 * 1024 : 25 * 1024 * 1024;
-    if (file.size > maxBytes) {
+
+    // Video is the overwhelming majority of most talking-head recordings'
+    // size; Whisper only needs the audio. Extract it client-side (real
+    // browser APIs, no new dependency) so the upload is small regardless of
+    // the source video's size, instead of sending the raw video and hitting
+    // either limit above. Falls back to the raw file if the browser can't
+    // extract audio, or if extraction itself fails.
+    let uploadFile: File = file;
+    if (isAudioExtractionSupported()) {
+      try {
+        setTranscription({ status: "reading", message: "Extracting audio (plays through once, silently)… 0%" });
+        uploadFile = await extractAudioTrack(file, {
+          onProgress: (fraction) => {
+            setTranscription({
+              status: "reading",
+              message: `Extracting audio (plays through once, silently)… ${Math.round(fraction * 100)}%`,
+            });
+          },
+        });
+      } catch {
+        uploadFile = file; // Fall back to the original video file below.
+      }
+    }
+
+    if (uploadFile.size > maxBytes) {
       const limitMb = Math.floor(maxBytes / (1024 * 1024));
+      const usedExtractedAudio = uploadFile !== file;
       const message = isVercelDeployment
-        ? `This hosted deployment accepts files up to ${limitMb} MB for automatic transcription (a platform limit, not OpenAI's). Trim the clip, extract just the audio track, add captions manually, or run this locally where the limit is 25 MB.`
-        : `Automatic transcription accepts files up to ${limitMb} MB. Add captions manually or upload a smaller proxy.`;
+        ? `This hosted deployment accepts ${usedExtractedAudio ? "extracted audio" : "files"} up to ${limitMb} MB for automatic transcription (a platform limit, not OpenAI's).${usedExtractedAudio ? " Even the audio track is too large — try" : " Extract just the audio track, or try"} a shorter clip, add captions manually, or run this locally where the limit is 25 MB.`
+        : `Automatic transcription accepts ${usedExtractedAudio ? "extracted audio" : "files"} up to ${limitMb} MB. Add captions manually or upload a smaller proxy.`;
       setTranscription({ status: "error", message });
       return { ok: false, message };
     }
 
     setTranscription({ status: "reading", message: "Transcribing base audio…" });
     const form = new FormData();
-    form.append("media", file, file.name);
+    form.append("media", uploadFile, uploadFile.name);
     try {
       const response = await fetch("/api/transcribe", {
         method: "POST",
