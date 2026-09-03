@@ -7,11 +7,10 @@ import { extractAudioTrack, isAudioExtractionSupported } from "@/lib/media/extra
 describe("extractAudioTrack: unsupported-environment fallback", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
-    delete (HTMLVideoElement.prototype as { captureStream?: unknown }).captureStream;
   });
 
-  it("reports unsupported when MediaRecorder is unavailable (e.g. jsdom, older browsers)", () => {
-    // jsdom does not implement MediaRecorder or captureStream(); this must
+  it("reports unsupported when the Web Audio API is unavailable (e.g. jsdom, older browsers)", () => {
+    // jsdom does not implement AudioContext/OfflineAudioContext; this must
     // resolve to false rather than throwing, so callers can cleanly fall
     // back to uploading the raw video file.
     expect(isAudioExtractionSupported()).toBe(false);
@@ -24,19 +23,17 @@ describe("extractAudioTrack: unsupported-environment fallback", () => {
   });
 
   it("respects an already-aborted signal even when otherwise supported", async () => {
-    vi.stubGlobal("MediaRecorder", {
-      isTypeSupported: () => true,
-    } as unknown as typeof MediaRecorder);
-    (HTMLVideoElement.prototype as { captureStream?: () => MediaStream }).captureStream = () => new MediaStream();
-    const video = document.createElement("video");
+    vi.stubGlobal("AudioContext", class {
+      decodeAudioData = vi.fn();
+      close = vi.fn();
+    } as unknown as typeof AudioContext);
+    vi.stubGlobal("OfflineAudioContext", class {} as unknown as typeof OfflineAudioContext);
+
     const controller = new AbortController();
     controller.abort(new DOMException("cancelled by test", "AbortError"));
 
     await expect(
-      extractAudioTrack(new File(["x"], "clip.mp4", { type: "video/mp4" }), {
-        signal: controller.signal,
-        createVideo: () => video,
-      }),
+      extractAudioTrack(new File(["x"], "clip.mp4", { type: "video/mp4" }), { signal: controller.signal }),
     ).rejects.toThrow(/cancelled/i);
   });
 });

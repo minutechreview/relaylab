@@ -290,16 +290,10 @@ export function LocalMediaProvider({
     let uploadFile: File = file;
     if (isAudioExtractionSupported()) {
       try {
-        setTranscription({ status: "reading", message: "Extracting audio (plays through once, silently)… 0%" });
-        uploadFile = await extractAudioTrack(file, {
-          onProgress: (fraction) => {
-            setTranscription({
-              status: "reading",
-              message: `Extracting audio (plays through once, silently)… ${Math.round(fraction * 100)}%`,
-            });
-          },
-        });
-      } catch {
+        setTranscription({ status: "reading", message: "Extracting audio…" });
+        uploadFile = await extractAudioTrack(file);
+      } catch (err) {
+        console.error("DEBUG extraction error:", err); // TEMP
         uploadFile = file; // Fall back to the original video file below.
       }
     }

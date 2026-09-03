@@ -1,161 +1,134 @@
 /**
- * Extracts just the audio track from a local video file as a compressed
- * Blob, using only browser-native APIs (`HTMLMediaElement.captureStream()`
- * + `MediaRecorder`) — no ffmpeg, no wasm, no new dependency.
+ * Extracts just the audio track from a local video file as a small WAV
+ * Blob, using only browser-native Web Audio API calls (`decodeAudioData` +
+ * `OfflineAudioContext`) — no ffmpeg, no wasm, no new dependency.
  *
  * Exists so automatic transcription can upload a small audio-only payload
  * instead of the full video: video is the overwhelming majority of most
  * talking-head recordings' size, and both OpenAI's Whisper endpoint (25 MB)
  * and this app's hosted-deployment limit (see app/api/transcribe/route.ts)
- * cap the request body. A few-minutes-long talking-head video's compressed
- * audio is typically a few MB; the full video routinely is not.
+ * cap the request body.
  *
- * Real limitation, stated honestly: extraction happens by actually playing
- * the video back at 1x speed while recording its audio output — there is no
- * browser API to decode+re-encode audio faster than real time without a
- * wasm/ffmpeg dependency. A 10-minute video takes ~10 minutes to extract.
- * Speeding up playback was considered and rejected: it would alter the
- * captured audio's tempo/pitch, degrading transcription accuracy and
- * requiring every word timestamp to be rescaled back down — a correctness
- * risk not worth the UX gain here.
+ * An earlier version used `HTMLVideoElement.captureStream()` +
+ * `MediaRecorder`, recording audio in real time during playback. Dropped
+ * after confirming (via a real WebKit run, not assumption) that Safari —
+ * including every iOS browser, which Apple requires to embed WebKit
+ * regardless of branding — has never implemented `captureStream()` on
+ * media elements, so that approach silently fell back to uploading the
+ * full video and hit the same size limit this exists to avoid.
+ * `decodeAudioData`/`OfflineAudioContext` are supported in Safari and every
+ * other modern browser, and rendering happens as fast as the browser can
+ * decode rather than at real-time playback speed — strictly better on both
+ * compatibility and speed.
+ *
+ * Output is downsampled to mono 16 kHz — matching Whisper's own expected
+ * input rate — to keep the WAV file compact despite being uncompressed
+ * (~1.9 MB per minute of audio, comfortably under both limits above for a
+ * realistic single continuous talking-head recording; a very long
+ * recording could still exceed them, in which case the caller's existing
+ * size check surfaces a clear, honest error rather than a silent failure).
  */
 
 export interface ExtractAudioTrackOptions {
   signal?: AbortSignal;
-  /** Called with a 0–1 fraction as extraction progresses. */
-  onProgress?: (fraction: number) => void;
-  createVideo?: () => HTMLVideoElement;
 }
 
-/** `captureStream()` is a real, widely-supported API missing from TS's DOM lib types. */
-type CaptureStreamCapable = HTMLVideoElement & { captureStream?: () => MediaStream };
+const TARGET_SAMPLE_RATE = 16_000;
 
-const CANDIDATE_MIME_TYPES = [
-  "audio/webm;codecs=opus",
-  "audio/webm",
-  "audio/mp4",
-  "audio/ogg;codecs=opus",
-];
+type AudioContextConstructor = typeof AudioContext;
+
+function resolveAudioContextConstructor(): AudioContextConstructor | null {
+  if (typeof window === "undefined") return null;
+  const globalWindow = window as typeof window & { webkitAudioContext?: AudioContextConstructor };
+  return globalWindow.AudioContext ?? globalWindow.webkitAudioContext ?? null;
+}
 
 export function isAudioExtractionSupported(): boolean {
-  if (typeof window === "undefined") return false;
-  if (typeof MediaRecorder === "undefined") return false;
-  const video = document.createElement("video") as CaptureStreamCapable;
-  if (typeof video.captureStream !== "function") return false;
-  return CANDIDATE_MIME_TYPES.some((type) => MediaRecorder.isTypeSupported(type));
+  return resolveAudioContextConstructor() !== null && typeof OfflineAudioContext !== "undefined";
 }
 
-function pickMimeType(): string | null {
-  return CANDIDATE_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type)) ?? null;
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw signal.reason ?? new DOMException("Audio extraction cancelled.", "AbortError");
+  }
+}
+
+function writeAsciiString(view: DataView, offset: number, value: string): void {
+  for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i));
+}
+
+/** Encodes a mono AudioBuffer as a 16-bit PCM WAV Blob. */
+function encodeWav(buffer: AudioBuffer): Blob {
+  const samples = buffer.getChannelData(0);
+  const bytesPerSample = 2;
+  const dataSize = samples.length * bytesPerSample;
+  const arrayBuffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(arrayBuffer);
+
+  writeAsciiString(view, 0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeAsciiString(view, 8, "WAVE");
+  writeAsciiString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, buffer.sampleRate, true);
+  view.setUint32(28, buffer.sampleRate * bytesPerSample, true);
+  view.setUint16(32, bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeAsciiString(view, 36, "data");
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples.length; i += 1, offset += 2) {
+    const clamped = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+  }
+
+  return new Blob([new Uint8Array(arrayBuffer)], { type: "audio/wav" });
 }
 
 export async function extractAudioTrack(
   file: File,
   options: ExtractAudioTrackOptions = {},
 ): Promise<File> {
-  const { signal, onProgress, createVideo = () => document.createElement("video") } = options;
-
-  if (!isAudioExtractionSupported()) {
-    throw new Error("This browser cannot extract audio locally (missing MediaRecorder/captureStream support).");
+  const { signal } = options;
+  const AudioContextCtor = resolveAudioContextConstructor();
+  if (!AudioContextCtor || typeof OfflineAudioContext === "undefined") {
+    throw new Error("This browser cannot extract audio locally (missing Web Audio API support).");
   }
-  if (signal?.aborted) {
-    throw signal.reason ?? new DOMException("Audio extraction cancelled.", "AbortError");
+  throwIfAborted(signal);
+
+  const arrayBuffer = await file.arrayBuffer();
+  throwIfAborted(signal);
+
+  const decodingContext = new AudioContextCtor();
+  let decoded: AudioBuffer;
+  try {
+    decoded = await decodingContext.decodeAudioData(arrayBuffer);
+  } catch {
+    throw new Error("The video's audio could not be decoded for automatic transcription.");
+  } finally {
+    void decodingContext.close?.();
+  }
+  throwIfAborted(signal);
+
+  if (decoded.duration <= 0) {
+    throw new Error("This video has no audio track to transcribe.");
   }
 
-  const mimeType = pickMimeType();
-  if (!mimeType) {
-    throw new Error("No supported audio recording format is available in this browser.");
-  }
+  const offlineContext = new OfflineAudioContext(
+    1,
+    Math.max(1, Math.ceil(decoded.duration * TARGET_SAMPLE_RATE)),
+    TARGET_SAMPLE_RATE,
+  );
+  const source = offlineContext.createBufferSource();
+  source.buffer = decoded;
+  source.connect(offlineContext.destination);
+  source.start();
+  const rendered = await offlineContext.startRendering();
+  throwIfAborted(signal);
 
-  const objectUrl = URL.createObjectURL(file);
-  const video = createVideo() as CaptureStreamCapable;
-  video.muted = true; // silences speaker output only; captureStream() still carries real audio.
-  video.playsInline = true;
-  video.preload = "auto";
-
-  return new Promise<File>((resolve, reject) => {
-    let settled = false;
-    let recorder: MediaRecorder | null = null;
-    let stream: MediaStream | null = null;
-    let progressFrame: number | null = null;
-
-    const cleanup = () => {
-      if (progressFrame !== null) cancelAnimationFrame(progressFrame);
-      signal?.removeEventListener("abort", onAbort);
-      video.removeEventListener("loadedmetadata", onLoadedMetadata);
-      video.removeEventListener("ended", onEnded);
-      video.removeEventListener("error", onError);
-      video.pause();
-      video.removeAttribute("src");
-      stream?.getTracks().forEach((track) => track.stop());
-      URL.revokeObjectURL(objectUrl);
-    };
-
-    const finish = (callback: () => void) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      callback();
-    };
-
-    const onError = () =>
-      finish(() => reject(new Error("The video could not be read for audio extraction.")));
-
-    const onAbort = () => {
-      if (recorder?.state === "recording") recorder.stop();
-      finish(() => reject(signal?.reason ?? new DOMException("Audio extraction cancelled.", "AbortError")));
-    };
-
-    const reportProgress = () => {
-      if (onProgress && video.duration > 0) {
-        onProgress(Math.min(1, video.currentTime / video.duration));
-      }
-      if (!settled) progressFrame = requestAnimationFrame(reportProgress);
-    };
-
-    const onEnded = () => {
-      if (recorder && recorder.state === "recording") recorder.stop();
-    };
-
-    const onLoadedMetadata = () => {
-      try {
-        const captured = video.captureStream?.();
-        if (!captured) {
-          finish(() => reject(new Error("captureStream() is unavailable for this video.")));
-          return;
-        }
-        const audioTracks = captured.getAudioTracks();
-        if (audioTracks.length === 0) {
-          finish(() => reject(new Error("This video has no audio track to transcribe.")));
-          return;
-        }
-        stream = new MediaStream(audioTracks);
-        const chunks: BlobPart[] = [];
-        recorder = new MediaRecorder(stream, { mimeType });
-        recorder.ondataavailable = (event) => {
-          if (event.data.size > 0) chunks.push(event.data);
-        };
-        recorder.onerror = () => finish(() => reject(new Error("Audio recording failed during extraction.")));
-        recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: mimeType });
-          const extension = mimeType.startsWith("audio/mp4") ? "m4a" : "webm";
-          finish(() =>
-            resolve(new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.audio.${extension}`, { type: mimeType })),
-          );
-        };
-        recorder.start();
-        void video.play();
-        progressFrame = requestAnimationFrame(reportProgress);
-      } catch (error) {
-        finish(() => reject(error instanceof Error ? error : new Error("Audio extraction failed.")));
-      }
-    };
-
-    video.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
-    video.addEventListener("ended", onEnded, { once: true });
-    video.addEventListener("error", onError, { once: true });
-    signal?.addEventListener("abort", onAbort, { once: true });
-    video.src = objectUrl;
-    video.load();
-  });
+  const wavBlob = encodeWav(rendered);
+  return new File([wavBlob], `${file.name.replace(/\.[^.]+$/, "")}.audio.wav`, { type: "audio/wav" });
 }
