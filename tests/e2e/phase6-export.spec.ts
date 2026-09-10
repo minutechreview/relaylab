@@ -92,7 +92,8 @@ test.beforeEach(async ({ page }) => {
         options?.signal?.addEventListener(
           "abort",
           () => {
-            if (this.tools.get(tool.name) === tool) this.tools.delete(tool.name);
+            if (this.tools.get(tool.name) === tool)
+              this.tools.delete(tool.name);
           },
           { once: true },
         );
@@ -154,7 +155,7 @@ test("export downloads stay auditable and final rendering remains approval-gated
     page.getByTestId("export-edit-json").click(),
   ]);
   expect(editJsonDownload.suggestedFilename()).toBe(
-    "how-great-products-earn-attention.edit.json",
+    "why-i-deleted-30-ai-tools.edit.json",
   );
   const editJsonText = await readDownload(editJsonDownload);
   const editSpec = JSON.parse(editJsonText) as DownloadedEditSpec;
@@ -203,7 +204,7 @@ test("export downloads stay auditable and final rendering remains approval-gated
     page.getByTestId("download-ffmpeg-script").click(),
   ]);
   expect(scriptDownload.suggestedFilename()).toBe(
-    "how-great-products-earn-attention.render.sh",
+    "why-i-deleted-30-ai-tools.render.sh",
   );
   const script = await readDownload(scriptDownload);
 
@@ -211,9 +212,9 @@ test("export downloads stay auditable and final rendering remains approval-gated
   expect(script).not.toMatch(/-map\s+['"]?[1-9]\d*:a(?::\d+)?/u);
   expect(script).not.toMatch(/\[[1-9]\d*:a(?::\d+)?\]/u);
   expect(script).toContain(
-    "trim=start=8.2:end=14,setpts=PTS-STARTPTS+19.2/TB",
+    "trim=start=47:end=52.6,setpts=PTS-STARTPTS+48.2/TB",
   );
-  expect(script).toContain("between(t,19.2,25)");
+  expect(script).toContain("between(t,48.2,53.8)");
 
   await expect(page.getByTestId("download-caption-sidecar")).toBeVisible();
   const [captionDownload] = await Promise.all([
@@ -221,11 +222,11 @@ test("export downloads stay auditable and final rendering remains approval-gated
     page.getByTestId("download-caption-sidecar").click(),
   ]);
   expect(captionDownload.suggestedFilename()).toBe(
-    "how-great-products-earn-attention.captions.srt",
+    "why-i-deleted-30-ai-tools.captions.srt",
   );
   const captions = await readDownload(captionDownload);
-  expect(captions).toContain("00:00:00,000 --> 00:00:08,600");
+  expect(captions).toContain("00:00:00,000 --> 00:00:06,300");
   expect(captions).toContain(
-    "Most products do not have an attention problem. They have a clarity problem.",
+    "I deleted 30 AI tools from my phone last month, and honestly, I got more done.",
   );
 });

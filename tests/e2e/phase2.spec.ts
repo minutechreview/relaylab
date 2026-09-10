@@ -61,6 +61,7 @@ const PLANNING_TOOLS = [
 
 const READ_ONLY_TOOLS = [
   "find_overlay_opportunities",
+  "get_edit_plan",
   "get_project_summary",
   "get_timeline",
   "get_transcript",
@@ -120,14 +121,18 @@ test.beforeEach(async ({ page }) => {
           throw new DOMException("Registration aborted.", "AbortError");
         }
         if (this.tools.has(tool.name)) {
-          throw new DOMException(`Duplicate tool: ${tool.name}`, "InvalidStateError");
+          throw new DOMException(
+            `Duplicate tool: ${tool.name}`,
+            "InvalidStateError",
+          );
         }
 
         this.tools.set(tool.name, tool);
         options?.signal?.addEventListener(
           "abort",
           () => {
-            if (this.tools.get(tool.name) === tool) this.tools.delete(tool.name);
+            if (this.tools.get(tool.name) === tool)
+              this.tools.delete(tool.name);
           },
           { once: true },
         );
@@ -142,7 +147,8 @@ test.beforeEach(async ({ page }) => {
         input: Record<string, unknown> = {},
       ): Promise<unknown> {
         const tool = this.tools.get(name);
-        if (!tool) throw new DOMException(`Tool not found: ${name}`, "NotFoundError");
+        if (!tool)
+          throw new DOMException(`Tool not found: ${name}`, "NotFoundError");
         const result = await tool.execute(structuredClone(input), {
           signal: new AbortController().signal,
         });
@@ -184,7 +190,7 @@ test("human edits and approval dynamically gate the agent commit surface", async
   }
 
   const proposal = await invokeTool<ToolActionResult>(page, "propose_overlay", {
-    momentId: "moment_workspace_overhead",
+    momentId: "moment_claude_science_structure",
     timelineStart: 9.5,
     duration: 4.2,
     reason: "Agent proposal for the human collaboration loop.",
@@ -197,7 +203,7 @@ test("human edits and approval dynamically gate the agent commit surface", async
   await expect(overlayBlock).toBeVisible();
   await expect(overlayBlock).toHaveAttribute("data-status", "ghost");
   await expect(page.getByLabel("Overlay source moment")).toHaveValue(
-    "moment_workspace_overhead",
+    "moment_claude_science_structure",
   );
 
   await page.getByLabel("Overlay timeline start").fill("30.5");
@@ -205,14 +211,16 @@ test("human edits and approval dynamically gate the agent commit surface", async
 
   await page
     .getByLabel("Overlay source moment")
-    .selectOption("moment_city_momentum");
+    .selectOption("moment_claude_science_compute");
   await expect(page.getByLabel("Overlay source moment")).toHaveValue(
-    "moment_city_momentum",
+    "moment_claude_science_compute",
   );
 
   await page.getByRole("button", { name: "Lock overlay" }).click();
   await expect(overlayBlock).toHaveAttribute("data-locked", "true");
-  await expect(page.getByRole("button", { name: "Unlock overlay" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Unlock overlay" }),
+  ).toBeVisible();
   await expect(page.getByLabel("Overlay timeline start")).toBeDisabled();
   await expect(page.getByLabel("Overlay source moment")).toBeDisabled();
 
@@ -228,7 +236,10 @@ test("human edits and approval dynamically gate the agent commit surface", async
   );
   expect(rejectedUpdate).toMatchObject({ ok: false, code: "HUMAN_LOCKED" });
 
-  const planningTimeline = await invokeTool<TimelineResult>(page, "get_timeline");
+  const planningTimeline = await invokeTool<TimelineResult>(
+    page,
+    "get_timeline",
+  );
   const humanEditedOverlay = planningTimeline.overlays.find(
     (overlay) => overlay.id === overlayId,
   );
@@ -238,10 +249,10 @@ test("human edits and approval dynamically gate the agent commit surface", async
   });
   expect(humanEditedOverlay).toMatchObject({
     id: overlayId,
-    assetId: "city_reel",
-    momentId: "moment_city_momentum",
-    sourceStart: 74.2,
-    sourceEnd: 78.4,
+    assetId: "claude_science_reel",
+    momentId: "moment_claude_science_compute",
+    sourceStart: 47,
+    sourceEnd: 51.2,
     timelineStart: 30.5,
     timelineEnd: 34.7,
     status: "ghost",
@@ -273,7 +284,10 @@ test("human edits and approval dynamically gate the agent commit surface", async
     fullPage: true,
   });
 
-  const commit = await invokeTool<ToolActionResult>(page, "commit_approved_plan");
+  const commit = await invokeTool<ToolActionResult>(
+    page,
+    "commit_approved_plan",
+  );
   expect(commit).toMatchObject({
     ok: true,
     status: "committed",
@@ -285,11 +299,16 @@ test("human edits and approval dynamically gate the agent commit surface", async
     "data-project-status",
     "committed",
   );
-  await expect.poll(() => toolNames(page)).toEqual(READ_ONLY_TOOLS.slice().sort());
+  await expect
+    .poll(() => toolNames(page))
+    .toEqual(READ_ONLY_TOOLS.slice().sort());
   await expect(overlayBlock).toHaveAttribute("data-status", "committed");
   await expect(overlayBlock).toHaveAttribute("data-locked", "true");
 
-  const committedTimeline = await invokeTool<TimelineResult>(page, "get_timeline");
+  const committedTimeline = await invokeTool<TimelineResult>(
+    page,
+    "get_timeline",
+  );
   const committedOverlay = committedTimeline.overlays.find(
     (overlay) => overlay.id === overlayId,
   );

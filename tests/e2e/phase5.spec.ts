@@ -21,14 +21,18 @@ test.beforeEach(async ({ page }) => {
           throw new DOMException("Registration aborted.", "AbortError");
         }
         if (this.tools.has(tool.name)) {
-          throw new DOMException(`Duplicate tool: ${tool.name}`, "InvalidStateError");
+          throw new DOMException(
+            `Duplicate tool: ${tool.name}`,
+            "InvalidStateError",
+          );
         }
 
         this.tools.set(tool.name, tool);
         options?.signal?.addEventListener(
           "abort",
           () => {
-            if (this.tools.get(tool.name) === tool) this.tools.delete(tool.name);
+            if (this.tools.get(tool.name) === tool)
+              this.tools.delete(tool.name);
           },
           { once: true },
         );
@@ -43,7 +47,8 @@ test.beforeEach(async ({ page }) => {
         input: Record<string, unknown> = {},
       ): Promise<unknown> {
         const tool = this.tools.get(name);
-        if (!tool) throw new DOMException(`Tool not found: ${name}`, "NotFoundError");
+        if (!tool)
+          throw new DOMException(`Tool not found: ${name}`, "NotFoundError");
         const result = await tool.execute(structuredClone(input), {
           signal: new AbortController().signal,
         });
@@ -76,12 +81,12 @@ test("captions render over the preview, the caption toggle hides them, and pacin
     "available",
   );
 
-  // The demo project's playhead starts at 21.8s, inside the third transcript
-  // segment (18.2-28.8s), so its matching caption should already be visible.
+  // The playhead starts at 0, inside the transcript's first segment
+  // (0-6.3s), so its matching caption should already be visible.
   const caption = page.getByTestId("active-caption");
   await expect(caption).toBeVisible();
   await expect(caption).toHaveText(
-    "First, show the outcome. Let people see the finished work before you explain every control.",
+    "I deleted 30 AI tools from my phone last month, and honestly, I got more done.",
   );
 
   const captionsToggle = page.locator("#captions-toggle");
@@ -113,19 +118,27 @@ test("captions render over the preview, the caption toggle hides them, and pacin
   await pacingInput.blur();
   await expect(pacingInput).toHaveValue("29");
 
+  // The timeline inspector is open by default and overlaps the right edge
+  // of the scrub ruler, intercepting pointer events there.
+  await page.getByRole("button", { name: "Close timeline inspector" }).click();
+
   const scrubber = page.getByTestId("timeline-scrubber");
   const scrubberBox = await scrubber.boundingBox();
   expect(scrubberBox).not.toBeNull();
   if (scrubberBox) {
     await page.mouse.move(
-      scrubberBox.x + scrubberBox.width * 0.72,
+      scrubberBox.x + scrubberBox.width * 0.6,
       scrubberBox.y + scrubberBox.height / 2,
     );
+    await page.mouse.down();
+    await page.mouse.up();
     await expect
       .poll(async () =>
-        Number(await page.getByTestId("timeline-playhead").getAttribute("data-time")),
+        Number(
+          await page.getByTestId("timeline-playhead").getAttribute("data-time"),
+        ),
       )
-      .toBeGreaterThan(60);
+      .toBeGreaterThan(35);
   }
 });
 
@@ -137,31 +150,68 @@ test("RelayLab keeps details on demand and supports split plus caption placement
   await expect(page.getByLabel("Selected timeline item details")).toBeVisible();
 
   await page.getByRole("button", { name: "Close timeline inspector" }).click();
-  await expect(page.getByLabel("Selected timeline item details")).toHaveCount(0);
+  await expect(page.getByLabel("Selected timeline item details")).toHaveCount(
+    0,
+  );
 
-  await page.getByTestId("overlay-ov_demo_1").click();
+  // Move the playhead inside the overlay's timeline range (48.2-53.8s) —
+  // split is only enabled when the playhead sits inside the target clip,
+  // at least 0.5s from either edge.
+  const scrubber = page.getByTestId("timeline-scrubber");
+  const scrubberBox = await scrubber.boundingBox();
+  expect(scrubberBox).not.toBeNull();
+  if (scrubberBox) {
+    await page.mouse.move(
+      scrubberBox.x + scrubberBox.width * 0.77,
+      scrubberBox.y + scrubberBox.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.up();
+  }
+
+  await page.getByTestId("overlay-ov_showcase_1").click();
   await expect(page.getByLabel("Selected timeline item details")).toBeVisible();
   await expect(page.getByTestId("split-overlay")).toBeEnabled();
   await page.getByTestId("split-overlay").click();
 
   const timeline = (await page.evaluate(async () =>
-    (window as unknown as {
-      __relaylabWebMcp: {
-        invoke: (name: string) => Promise<{
-          overlays: Array<{ sourceStart: number; sourceEnd: number; timelineStart: number; timelineEnd: number }>;
-        }>;
-      };
-    }).__relaylabWebMcp.invoke("get_timeline"),
+    (
+      window as unknown as {
+        __relaylabWebMcp: {
+          invoke: (name: string) => Promise<{
+            overlays: Array<{
+              sourceStart: number;
+              sourceEnd: number;
+              timelineStart: number;
+              timelineEnd: number;
+            }>;
+          }>;
+        };
+      }
+    ).__relaylabWebMcp.invoke("get_timeline"),
   )) as {
-    overlays: Array<{ sourceStart: number; sourceEnd: number; timelineStart: number; timelineEnd: number }>;
+    overlays: Array<{
+      sourceStart: number;
+      sourceEnd: number;
+      timelineStart: number;
+      timelineEnd: number;
+    }>;
   };
   expect(timeline.overlays).toHaveLength(2);
-  expect(timeline.overlays[0].timelineEnd).toBe(timeline.overlays[1].timelineStart);
+  expect(timeline.overlays[0].timelineEnd).toBe(
+    timeline.overlays[1].timelineStart,
+  );
   expect(timeline.overlays[0].sourceEnd).toBe(timeline.overlays[1].sourceStart);
 
-  await page.locator("header").getByRole("button", { name: "Toggle captions" }).click();
+  await page
+    .locator("header")
+    .getByRole("button", { name: "Toggle captions" })
+    .click();
   await page.getByRole("button", { name: "Top", exact: true }).click();
-  await expect(page.getByTestId("active-caption")).toHaveAttribute("data-caption-position", "top");
+  await expect(page.getByTestId("active-caption")).toHaveAttribute(
+    "data-caption-position",
+    "top",
+  );
 });
 
 test("a human can drag an indexed library moment directly onto the B-roll track", async ({
@@ -174,9 +224,13 @@ test("a human can drag an indexed library moment directly onto the B-roll track"
   );
 
   const before = (await page.evaluate(async () =>
-    (window as unknown as {
-      __relaylabWebMcp: { invoke: (name: string) => Promise<{ overlays: unknown[] }> };
-    }).__relaylabWebMcp.invoke("get_timeline"),
+    (
+      window as unknown as {
+        __relaylabWebMcp: {
+          invoke: (name: string) => Promise<{ overlays: unknown[] }>;
+        };
+      }
+    ).__relaylabWebMcp.invoke("get_timeline"),
   )) as { overlays: unknown[] };
 
   await page
@@ -187,13 +241,15 @@ test("a human can drag an indexed library moment directly onto the B-roll track"
     });
 
   const after = (await page.evaluate(async () =>
-    (window as unknown as {
-      __relaylabWebMcp: {
-        invoke: (name: string) => Promise<{
-          overlays: Array<{ createdBy: string; status: string }>;
-        }>;
-      };
-    }).__relaylabWebMcp.invoke("get_timeline"),
+    (
+      window as unknown as {
+        __relaylabWebMcp: {
+          invoke: (name: string) => Promise<{
+            overlays: Array<{ createdBy: string; status: string }>;
+          }>;
+        };
+      }
+    ).__relaylabWebMcp.invoke("get_timeline"),
   )) as { overlays: Array<{ createdBy: string; status: string }> };
 
   expect(after.overlays).toHaveLength(before.overlays.length + 1);

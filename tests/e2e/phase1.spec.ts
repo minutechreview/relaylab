@@ -41,14 +41,18 @@ test.beforeEach(async ({ page }) => {
           throw new DOMException("Registration aborted.", "AbortError");
         }
         if (this.tools.has(tool.name)) {
-          throw new DOMException(`Duplicate tool: ${tool.name}`, "InvalidStateError");
+          throw new DOMException(
+            `Duplicate tool: ${tool.name}`,
+            "InvalidStateError",
+          );
         }
 
         this.tools.set(tool.name, tool);
         options?.signal?.addEventListener(
           "abort",
           () => {
-            if (this.tools.get(tool.name) === tool) this.tools.delete(tool.name);
+            if (this.tools.get(tool.name) === tool)
+              this.tools.delete(tool.name);
           },
           { once: true },
         );
@@ -63,7 +67,8 @@ test.beforeEach(async ({ page }) => {
         input: Record<string, unknown> = {},
       ): Promise<unknown> {
         const tool = this.tools.get(name);
-        if (!tool) throw new DOMException(`Tool not found: ${name}`, "NotFoundError");
+        if (!tool)
+          throw new DOMException(`Tool not found: ${name}`, "NotFoundError");
         const result = await tool.execute(structuredClone(input), {
           signal: new AbortController().signal,
         });
@@ -119,9 +124,12 @@ test("agent proposal, human move, and timeline reread share one project", async 
 
   const proposal = (await page.evaluate(
     async (input) =>
-      (window as unknown as TestWindow).__relaylabWebMcp.invoke("propose_overlay", input),
+      (window as unknown as TestWindow).__relaylabWebMcp.invoke(
+        "propose_overlay",
+        input,
+      ),
     {
-      momentId: "moment_workspace_overhead",
+      momentId: "moment_claude_science_structure",
       timelineStart: 9.5,
       duration: 4.2,
       reason: "Show the design process as the speaker explains clarity.",
@@ -144,7 +152,9 @@ test("agent proposal, human move, and timeline reread share one project", async 
     steps: 8,
   });
   await page.mouse.up();
-  await expect(page.getByLabel("Overlay timeline start")).not.toHaveValue("9.5");
+  await expect(page.getByLabel("Overlay timeline start")).not.toHaveValue(
+    "9.5",
+  );
 
   await page.getByLabel("Overlay timeline start").fill("30.5");
   await expect(page.getByLabel("Overlay timeline start")).toHaveValue("30.5");

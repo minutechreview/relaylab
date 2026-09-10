@@ -15,18 +15,25 @@ test.beforeEach(async ({ page }) => {
     class BrowserModelContext extends EventTarget {
       private readonly tools = new Map<string, ToolDefinition>();
 
-      async registerTool(tool: ToolDefinition, options?: { signal?: AbortSignal }) {
+      async registerTool(
+        tool: ToolDefinition,
+        options?: { signal?: AbortSignal },
+      ) {
         if (options?.signal?.aborted) {
           throw new DOMException("Registration aborted.", "AbortError");
         }
         if (this.tools.has(tool.name)) {
-          throw new DOMException(`Duplicate tool: ${tool.name}`, "InvalidStateError");
+          throw new DOMException(
+            `Duplicate tool: ${tool.name}`,
+            "InvalidStateError",
+          );
         }
         this.tools.set(tool.name, tool);
         options?.signal?.addEventListener(
           "abort",
           () => {
-            if (this.tools.get(tool.name) === tool) this.tools.delete(tool.name);
+            if (this.tools.get(tool.name) === tool)
+              this.tools.delete(tool.name);
           },
           { once: true },
         );
@@ -38,7 +45,8 @@ test.beforeEach(async ({ page }) => {
 
       async invoke(name: string, input: Record<string, unknown> = {}) {
         const tool = this.tools.get(name);
-        if (!tool) throw new DOMException(`Tool not found: ${name}`, "NotFoundError");
+        if (!tool)
+          throw new DOMException(`Tool not found: ${name}`, "NotFoundError");
         return structuredClone(
           await tool.execute(structuredClone(input), {
             signal: new AbortController().signal,
@@ -48,7 +56,10 @@ test.beforeEach(async ({ page }) => {
     }
 
     const context = new BrowserModelContext();
-    Object.defineProperty(document, "modelContext", { configurable: true, value: context });
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: context,
+    });
     Object.defineProperty(window, "__relaylabGenerationTools", {
       configurable: true,
       value: {
@@ -78,45 +89,82 @@ test("generation remains a visible human-confirmed fallback and preserves failur
   });
 
   await page.goto("/demo");
-  const suggestion = page.getByTestId("generation-suggestion-gen_demo_manager");
-  await expect(suggestion).toBeVisible();
-  expect(providerRequests).toBe(0);
-
   await expect(page.getByTestId("webmcp-status")).toHaveAttribute(
     "data-status",
     "available",
   );
 
   const tools = await page.evaluate(() =>
-    (window as unknown as { __relaylabGenerationTools: { names: () => string[] } })
-      .__relaylabGenerationTools.names(),
+    (
+      window as unknown as {
+        __relaylabGenerationTools: { names: () => string[] };
+      }
+    ).__relaylabGenerationTools.names(),
   );
   expect(tools).toContain("propose_generated_broll");
   expect(tools).not.toContain("generate_video");
   expect(tools).not.toContain("generate_broll");
 
+  // The showcase project ships with zero pre-seeded generation suggestions,
+  // so this test creates its own via the same tool an agent would use.
   const proposed = await page.evaluate(() =>
     (
       window as unknown as {
         __relaylabGenerationTools: {
-          invoke: (name: string, input: Record<string, unknown>) => Promise<{
+          invoke: (
+            name: string,
+            input: Record<string, unknown>,
+          ) => Promise<{
             ok: boolean;
             suggestionId: string;
           }>;
         };
       }
     ).__relaylabGenerationTools.invoke("propose_generated_broll", {
-      searchQuery: "restaurant manager monitors live inventory across stores on tablet",
-      timelineStart: 69,
+      searchQuery:
+        "restaurant manager monitors live inventory across stores on tablet",
+      timelineStart: 20,
       duration: 4,
-      prompt: "A restaurant manager reviews a live operations dashboard on a tablet.",
-      reason: "No uploaded source communicates the multi-store operations concept.",
+      prompt:
+        "A restaurant manager reviews a live operations dashboard on a tablet.",
+      reason:
+        "No uploaded source communicates the multi-store operations concept.",
     }),
   );
   expect(proposed.ok).toBe(true);
+  const suggestion = page.getByTestId(
+    `generation-suggestion-${proposed.suggestionId}`,
+  );
+  await expect(suggestion).toBeVisible();
+  expect(providerRequests).toBe(0);
+
+  // A second, distinct suggestion can coexist alongside the first.
+  const secondProposed = await page.evaluate(() =>
+    (
+      window as unknown as {
+        __relaylabGenerationTools: {
+          invoke: (
+            name: string,
+            input: Record<string, unknown>,
+          ) => Promise<{
+            ok: boolean;
+            suggestionId: string;
+          }>;
+        };
+      }
+    ).__relaylabGenerationTools.invoke("propose_generated_broll", {
+      searchQuery: "close-up of a barista pulling an espresso shot",
+      timelineStart: 30,
+      duration: 3,
+      prompt: "A barista pulls a fresh espresso shot at a busy counter.",
+      reason: "No uploaded source covers the espresso beat of the story.",
+    }),
+  );
+  expect(secondProposed.ok).toBe(true);
   await expect(
-    page.getByTestId(`generation-suggestion-${proposed.suggestionId}`),
+    page.getByTestId(`generation-suggestion-${secondProposed.suggestionId}`),
   ).toBeVisible();
+  await expect(suggestion).toBeVisible();
   expect(providerRequests).toBe(0);
 
   await suggestion.click();
@@ -188,12 +236,42 @@ test("a human generation success becomes an ordinary muted ghost with measured d
     "data-status",
     "available",
   );
-  await page.getByTestId("generation-suggestion-gen_demo_manager").click();
+
+  // The showcase project ships with zero pre-seeded generation suggestions,
+  // so this test creates its own via the same tool an agent would use.
+  const proposed = await page.evaluate(() =>
+    (
+      window as unknown as {
+        __relaylabGenerationTools: {
+          invoke: (
+            name: string,
+            input: Record<string, unknown>,
+          ) => Promise<{
+            ok: boolean;
+            suggestionId: string;
+          }>;
+        };
+      }
+    ).__relaylabGenerationTools.invoke("propose_generated_broll", {
+      searchQuery:
+        "restaurant manager monitors live inventory across stores on tablet",
+      timelineStart: 20,
+      duration: 4,
+      prompt:
+        "A restaurant manager reviews a live operations dashboard on a tablet.",
+      reason:
+        "No uploaded source communicates the multi-store operations concept.",
+    }),
+  );
+  expect(proposed.ok).toBe(true);
+  const suggestionTestId = `generation-suggestion-${proposed.suggestionId}`;
+
+  await page.getByTestId(suggestionTestId).click();
   await page.getByTestId("generate-clip").click();
 
   const overlay = page.locator('[data-overlay-id^="ov_agent_"]').first();
   await expect(overlay).toHaveAttribute("data-status", "ghost");
-  await expect(page.getByTestId("generation-suggestion-gen_demo_manager")).toHaveCount(0);
+  await expect(page.getByTestId(suggestionTestId)).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "Download current generated source" }),
   ).toHaveAttribute("download", /generated\.mp4$/u);
@@ -202,7 +280,8 @@ test("a human generation success becomes an ordinary muted ghost with measured d
   const overlayBox = await overlay.boundingBox();
   const track = overlay.locator("..");
   const trackBox = await track.boundingBox();
-  if (!overlayBox || !trackBox) throw new Error("Generated overlay track was not measurable.");
+  if (!overlayBox || !trackBox)
+    throw new Error("Generated overlay track was not measurable.");
   await track.click({
     position: {
       x: overlayBox.x + overlayBox.width / 2 - trackBox.x,
@@ -212,7 +291,12 @@ test("a human generation success becomes an ordinary muted ghost with measured d
 
   const preview = page.locator('video[data-broll-audio-policy="muted"]');
   await expect(preview).toBeVisible();
-  expect(Number(await preview.getAttribute("data-source-time"))).toBeCloseTo(2.1, 2);
+  // 1 decimal of precision: the click lands via pixel-fraction math against
+  // the overlay's on-screen width, which is not exact to the millisecond.
+  expect(Number(await preview.getAttribute("data-source-time"))).toBeCloseTo(
+    2,
+    1,
+  );
   await expect
     .poll(() => preview.evaluate((video) => (video as HTMLVideoElement).muted))
     .toBe(true);
